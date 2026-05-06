@@ -1,0 +1,99 @@
+notation
+63 62 61 60 59 58 57 56
+55 54 53 52 51 50 49 48
+47 46 45 44 43 42 41 40
+39 38 37 36 35 34 33 32
+31 30 29 28 27 26 25 24
+23 22 21 20 19 18 17 16
+15 14 13 12 11 10  9  8
+ 7  6  5  4  3  2  1  0
+
+empty
+0  0  0  0  0  0  0  0
+0  0  0  0  0  0  0  0
+0  0  0  0  0  0  0  0
+0  0  0  0  0  0  0  0
+0  0  0  0  0  0  0  0
+0  0  0  0  0  0  0  0
+0  0  0  0  0  0  0  0
+0  0  0  0  0  0  0  0
+0b0L
+
+
+adjacency mask for square 63
+0  1  0  0  0  0  0  0
+1  1  0  0  0  0  0  0
+0  0  0  0  0  0  0  0
+0  0  0  0  0  0  0  0
+0  0  0  0  0  0  0  0
+0  0  0  0  0  0  0  0
+0  0  0  0  0  0  0  0
+0  0  0  0  0  0  0  0
+0b01000000_11000000_00000000_00000000_00000000_00000000_00000000_00000000L
+
+adjacency mask for square 36
+0  0  0  0  0  0  0  0
+0  0  0  0  0  0  0  0
+0  0  1  1  1  0  0  0
+0  0  1  0  1  0  0  0
+0  0  1  1  1  0  0  0
+0  0  0  0  0  0  0  0
+0  0  0  0  0  0  0  0
+0  0  0  0  0  0  0  0
+0b00000000_00000000_00111000_00101000_00111000_00000000_00000000_00000000L
+
+
+finding valid moves for black in upward direction
+1. get black pieces and shl << 8 to move them all up a column
+2. AND the result with the white pieces to get remaining valid options (in upward direction) = curr
+3. while (curr != 0)
+    a. curr = shl << 8 again
+    b. valid moves = unoccupied squares AND curr (add these moves to the result)
+    c. curr = curr AND white pieces (there are potentially more valid moves as we move up a column)
+4. return result
+
+finding valid moves for black in left direction
+0. black pieces = !leftcolumn AND black pieces (get all black pieces that are not on the leftmost column)
+1. shl << 1 to move all black pieces left a row
+2. AND the result with the white pieces to get remaining valid options = curr
+3. while (curr != 0)
+    a. curr = !leftcolumn AND curr
+    a. curr = shl << 1 again
+    b. valid moves = unoccupied squares AND curr (add these moves to the result)
+    c. curr = curr AND white pieces (there are potentially more valid moves)
+4. return result
+
+finding valid moves for black in up-left direction
+0. black pieces = !leftcolumn AND black pieces (get all black pieces that are not on the leftmost column)
+1.
+
+fun getMoves(movingPieces, otherPieces, ineligibleMask, moveFn: (Int) -> Int) {
+    val unoccupied = ! (movingPieces or otherPieces)
+    val eligible = movingPieces and ! ineligibleMask
+    eligible = moveFn(eligible)
+    eligible = eligible and otherPieces
+
+    val validMoves = 0L
+    while (eligible != 0) {
+        eligible = eligible and ! ineligibleMask
+        eligible = moveFn(eligible)
+        validMoves |= eligible and unoccupied
+        eligible = eligible and otherPieces
+    }
+    return validMoves
+}
+
+
+0  0  0  0  0  0  0  0
+0  0  0  0  0  0  0  0
+0  0  0  0  0  0  0  0
+0  0  0  W  B  0  0  0
+0  0  0  B  W  0  0  0
+0  0  W  0  0  0  0  0
+0  0  0  0  0  0  0  0
+0  0  0  0  0  0  0  0
+
+
+ N
+W E
+ S

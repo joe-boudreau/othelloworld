@@ -7,7 +7,7 @@ import io.ktor.server.routing.*
 fun Application.configureRouting() {
     routing {
         get("/nextmove") {
-            call.
+            call.respondText("Othello, World!")
         }
     }
 }
