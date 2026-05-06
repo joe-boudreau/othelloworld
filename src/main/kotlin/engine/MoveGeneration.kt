@@ -1,4 +1,4 @@
-package com.othelloworld
+package com.othelloworld.engine
 
 const val CENTER_4 = 0b00000000_00000000_00000000_00011000_00011000_00000000_00000000_00000000L
 const val LEFT_COLUMN = 0b1000000_10000000_10000000_10000000_10000000_10000000_10000000_10000000L
@@ -74,6 +74,26 @@ what are we looking for?
  7  6  5  4  3  2  1  0
  */
 
+fun getAllMoves(movingPieces: Long, otherPieces: Long) =
+    getUpMoves(movingPieces, otherPieces) or
+            getDownMoves(movingPieces, otherPieces) or
+            getLeftMoves(movingPieces, otherPieces) or
+            getRightMoves(movingPieces, otherPieces) or
+            getUpLeftMoves(movingPieces, otherPieces) or
+            getUpRightMoves(movingPieces, otherPieces) or
+            getDownLeftMoves(movingPieces, otherPieces) or
+            getDownRightMoves(movingPieces, otherPieces)
+
+fun getUpMoves(movingPieces: Long, otherPieces: Long) = getMoves(movingPieces, otherPieces, 0L) { it shl 8 }
+fun getDownMoves(movingPieces: Long, otherPieces: Long) = getMoves(movingPieces, otherPieces, 0L) { it ushr 8 }
+fun getLeftMoves(movingPieces: Long, otherPieces: Long) = getMoves(movingPieces, otherPieces, LEFT_COLUMN) { it shl 1 }
+fun getRightMoves(movingPieces: Long, otherPieces: Long) = getMoves(movingPieces, otherPieces, RIGHT_COLUMN) { it ushr 1 }
+
+fun getUpLeftMoves(movingPieces: Long, otherPieces: Long) = getMoves(movingPieces, otherPieces, LEFT_COLUMN) { it shl 9 }
+fun getUpRightMoves(movingPieces: Long, otherPieces: Long) = getMoves(movingPieces, otherPieces, RIGHT_COLUMN) { it shl 7 }
+
+fun getDownLeftMoves(movingPieces: Long, otherPieces: Long) = getMoves(movingPieces, otherPieces, LEFT_COLUMN) { it ushr 7 }
+fun getDownRightMoves(movingPieces: Long, otherPieces: Long) = getMoves(movingPieces, otherPieces, RIGHT_COLUMN) { it ushr 9 }
 
 fun getMoves(movingPieces: Long, otherPieces: Long, ineligibleMask: Long, moveFn: (Long) -> Long): Long {
     val unoccupied = (movingPieces or otherPieces).inv()
@@ -90,28 +110,6 @@ fun getMoves(movingPieces: Long, otherPieces: Long, ineligibleMask: Long, moveFn
     }
     return validMoves
 }
-
-fun getUpMoves(movingPieces: Long, otherPieces: Long) = getMoves(movingPieces, otherPieces, 0L) { it shl 8 }
-fun getDownMoves(movingPieces: Long, otherPieces: Long) = getMoves(movingPieces, otherPieces, 0L) { it ushr 8 }
-fun getLeftMoves(movingPieces: Long, otherPieces: Long) = getMoves(movingPieces, otherPieces, LEFT_COLUMN) { it shl 1 }
-fun getRightMoves(movingPieces: Long, otherPieces: Long) = getMoves(movingPieces, otherPieces, RIGHT_COLUMN) { it ushr 1 }
-
-fun getUpLeftMoves(movingPieces: Long, otherPieces: Long) = getMoves(movingPieces, otherPieces, LEFT_COLUMN) { it shl 9 }
-fun getUpRightMoves(movingPieces: Long, otherPieces: Long) = getMoves(movingPieces, otherPieces, RIGHT_COLUMN) { it shl 7 }
-
-fun getDownLeftMoves(movingPieces: Long, otherPieces: Long) = getMoves(movingPieces, otherPieces, LEFT_COLUMN) { it ushr 7 }
-fun getDownRightMoves(movingPieces: Long, otherPieces: Long) = getMoves(movingPieces, otherPieces, RIGHT_COLUMN) { it ushr 9 }
-
-fun getAllMoves(movingPieces: Long, otherPieces: Long) =
-    getUpMoves(movingPieces, otherPieces) or
-    getDownMoves(movingPieces, otherPieces) or
-    getLeftMoves(movingPieces, otherPieces) or
-    getRightMoves(movingPieces, otherPieces) or
-    getUpLeftMoves(movingPieces, otherPieces) or
-    getUpRightMoves(movingPieces, otherPieces) or
-    getDownLeftMoves(movingPieces, otherPieces) or
-    getDownRightMoves(movingPieces, otherPieces)
-
 
 
 fun PiecePositions.isOccupied(square: Int) = (this and (1L shl square)) != 0L

@@ -83,6 +83,37 @@ fun getMoves(movingPieces, otherPieces, ineligibleMask, moveFn: (Int) -> Int) {
     return validMoves
 }
 
+# how to update game state based on move
+e.g.
+move: 37
+black
+0  0  0  0  0  0  0  0
+0  0  0  0  0  0  0  0
+0  0  0  0  0  0  0  0
+0  0  X  0  1  0  0  0
+0  0  0  1  0  0  0  0
+0  0  0  0  0  0  0  0
+0  0  0  0  0  0  0  0
+0  0  0  0  0  0  0  0
+
+white
+0  0  0  0  0  0  0  0
+0  0  0  0  0  0  0  0
+0  0  0  0  0  0  0  0
+0  0  X  1  0  0  0  0
+0  0  0  0  1  0  0  0
+0  0  0  0  0  0  0  0
+0  0  0  0  0  0  0  0
+0  0  0  0  0  0  0  0
+
+1. move in all directions away from piece being placed
+    while (piece color = opposing piece color)
+        a. flip opposing piece bit to 0
+        b. set moving piece bit to 1
+2. repeat for all 8 directions
+
+
+
 
 0  0  0  0  0  0  0  0
 0  0  0  0  0  0  0  0

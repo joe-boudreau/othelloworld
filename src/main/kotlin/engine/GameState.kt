@@ -1,4 +1,4 @@
-package com.othelloworld
+package com.othelloworld.engine
 
 typealias Square = Int // 0 to 63
 
@@ -13,7 +13,33 @@ data class GameState(
     val whitePositions: WhitePositions,
     val blackPositions: BlackPositions,
     val turn: Boolean,
-)
+) {
+
+    fun whitePieceCount(): Int = whitePositions.countOneBits()
+    fun blackPieceCount(): Int = blackPositions.countOneBits()
+    fun turnNumber() = whitePieceCount() + blackPieceCount() - 4 // 4 is the number of pieces in the center to start
+    fun remainingMoves() = 64 - whitePieceCount() - blackPieceCount()
+
+    fun print() {
+        println("Turn #: ${turnNumber()}")
+        println("Black piece count: ${blackPieceCount()}")
+        println("White piece count: ${whitePieceCount()}")
+        println("Remaining moves: ${remainingMoves()}")
+        println("To Move: ${if (turn == WHITE_TO_MOVE) "White" else "Black"}")
+        for (rank in 7 downTo 0) {
+            for (file in 7 downTo 0) {
+                val bit = rank * 8 + file
+                val char = when {
+                    (whitePositions ushr bit) and 1L == 1L -> "W"
+                    (blackPositions ushr bit) and 1L == 1L -> "B"
+                    else -> "0"
+                }
+                print(if (file == 0) char else "$char  ")
+            }
+            println()
+        }
+    }
+}
 
 /*
 Notation:

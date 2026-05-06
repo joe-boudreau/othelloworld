@@ -1,4 +1,4 @@
-package com.othelloworld
+package com.othelloworld.engine
 
 fun printBoard(board: Long) {
     for (rank in 7 downTo 0) {
