@@ -67,7 +67,7 @@ class Engine {
         return chosenMoveBoardState
     }
 
-    private fun getNextPossibleMoves(board: BoardState): List<Int> {
+    fun getNextPossibleMoves(board: BoardState): List<Int> {
         val allMoves =
             if (board.blackToMove) {
                 getAllMoves(board.blackPositions, board.whitePositions)
