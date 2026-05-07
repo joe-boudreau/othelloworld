@@ -26,7 +26,7 @@ fun printBoard(board: Long) {
  * W = White, B = Black, 0 = Empty
  *
  */
-fun generateGameStateFromBoardString(boardString: String, turn: Boolean = BLACK_TO_MOVE): GameState {
+fun generateBoardStateFromBoardString(boardString: String): BoardState {
     val chars = boardString.filter { it == 'W' || it == 'B' || it == '0' }
     require(chars.length == 64) { "Board string must contain exactly 64 piece characters (W/B/0), got ${chars.length}" }
 
@@ -39,5 +39,5 @@ fun generateGameStateFromBoardString(boardString: String, turn: Boolean = BLACK_
             'B' -> black = black or (1L shl bit)
         }
     }
-    return GameState(white, black, turn)
+    return BoardState(white, black)
 }

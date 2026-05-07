@@ -1,8 +1,7 @@
 package com.othelloworld
 
-import com.othelloworld.engine.BLACK_TO_MOVE
 import com.othelloworld.engine.STARTING_STATE
-import com.othelloworld.engine.generateGameStateFromBoardString
+import com.othelloworld.engine.generateBoardStateFromBoardString
 import com.othelloworld.engine.getAllMoves
 import com.othelloworld.engine.isValidGameState
 import com.othelloworld.engine.printBoard
@@ -36,7 +35,7 @@ class MoveGenerationTest {
 
     @Test
     fun `test move generation`() {
-        val gameState = generateGameStateFromBoardString(
+        val gameState = generateBoardStateFromBoardString(
             """
 0  0  0  0  0  0  0  0
 0  0  0  0  0  0  0  0
@@ -46,8 +45,7 @@ class MoveGenerationTest {
 0  0  0  W  W  0  0  0
 0  0  0  W  0  0  0  0
 0  0  0  W  0  0  0  0
-            """,
-            BLACK_TO_MOVE
+            """
         )
         val blackMoves = getAllMoves(gameState.blackPositions, gameState.whitePositions)
         println("Black moves: ")

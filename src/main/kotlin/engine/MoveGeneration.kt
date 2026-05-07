@@ -8,9 +8,9 @@ const val RIGHT_COLUMN = 0b00000001_00000001_00000001_00000001_00000001_00000001
  * Doesn't exactly check for whether the position is possible to reach, not sure if that's possible
  * This is mostly a sanity check for during development and debugging to catch obvious errors
  */
-fun isValidGameState(gameState: GameState): Boolean {
-    val white = gameState.whitePositions
-    val black = gameState.blackPositions
+fun isValidGameState(board: BoardState): Boolean {
+    val white = board.whitePositions
+    val black = board.blackPositions
 
     // 1. are any white and black pieces on the same square?
     if (white and black != 0L) return false
@@ -74,15 +74,15 @@ what are we looking for?
  7  6  5  4  3  2  1  0
  */
 
-fun getAllMoves(movingPieces: Long, otherPieces: Long) =
+fun getAllMoves(movingPieces: Long, otherPieces: Long): Long =
     getUpMoves(movingPieces, otherPieces) or
-            getDownMoves(movingPieces, otherPieces) or
-            getLeftMoves(movingPieces, otherPieces) or
-            getRightMoves(movingPieces, otherPieces) or
-            getUpLeftMoves(movingPieces, otherPieces) or
-            getUpRightMoves(movingPieces, otherPieces) or
-            getDownLeftMoves(movingPieces, otherPieces) or
-            getDownRightMoves(movingPieces, otherPieces)
+    getDownMoves(movingPieces, otherPieces) or
+    getLeftMoves(movingPieces, otherPieces) or
+    getRightMoves(movingPieces, otherPieces) or
+    getUpLeftMoves(movingPieces, otherPieces) or
+    getUpRightMoves(movingPieces, otherPieces) or
+    getDownLeftMoves(movingPieces, otherPieces) or
+    getDownRightMoves(movingPieces, otherPieces)
 
 fun getUpMoves(movingPieces: Long, otherPieces: Long) = getMoves(movingPieces, otherPieces, 0L) { it shl 8 }
 fun getDownMoves(movingPieces: Long, otherPieces: Long) = getMoves(movingPieces, otherPieces, 0L) { it ushr 8 }
@@ -111,8 +111,5 @@ fun getMoves(movingPieces: Long, otherPieces: Long, ineligibleMask: Long, moveFn
     return validMoves
 }
 
-
 fun PiecePositions.isOccupied(square: Int) = (this and (1L shl square)) != 0L
-fun Square.moveSE(): Int = this - 9
-fun Square.moveS(): Int = this - 8
 

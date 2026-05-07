@@ -1,38 +1,41 @@
 package com.othelloworld.engine
 
-typealias Square = Int // 0 to 63
-
 typealias PiecePositions = Long
 typealias WhitePositions = PiecePositions
 typealias BlackPositions = PiecePositions
 
-const val WHITE_TO_MOVE = true
-const val BLACK_TO_MOVE = false
+const val WHITE_STARTING_POSITION = 0b00000000_00000000_00000000_00010000_00001000_00000000_00000000_00000000L
+const val BLACK_STARTING_POSITION = 0b00000000_00000000_00000000_00001000_00010000_00000000_00000000_00000000L
+val STARTING_STATE = BoardState(WHITE_STARTING_POSITION, BLACK_STARTING_POSITION)
 
-data class GameState(
+data class BoardState(
     val whitePositions: WhitePositions,
     val blackPositions: BlackPositions,
-    val turn: Boolean,
 ) {
 
-    fun whitePieceCount(): Int = whitePositions.countOneBits()
-    fun blackPieceCount(): Int = blackPositions.countOneBits()
-    fun turnNumber() = whitePieceCount() + blackPieceCount() - 4 // 4 is the number of pieces in the center to start
-    fun remainingMoves() = 64 - whitePieceCount() - blackPieceCount()
+    val whitePieceCount: Int = whitePositions.countOneBits()
+    val blackPieceCount: Int = blackPositions.countOneBits()
+    val turnNumber: Int = whitePieceCount + blackPieceCount - 4 // 4 is the number of pieces in the centre to start
+    val remainingMoves: Int = 64 - whitePieceCount - blackPieceCount
+    val blackToMove: Boolean = turnNumber % 2 == 0 // Black always goes first in Othello
+    val whiteToMove: Boolean = !blackToMove
 
-    fun print() {
-        println("Turn #: ${turnNumber()}")
-        println("Black piece count: ${blackPieceCount()}")
-        println("White piece count: ${whitePieceCount()}")
-        println("Remaining moves: ${remainingMoves()}")
-        println("To Move: ${if (turn == WHITE_TO_MOVE) "White" else "Black"}")
+    fun print(withMetadata: Boolean = true) {
+        if (withMetadata) {
+            println("Turn #: $turnNumber")
+            println("Black piece count: $blackPieceCount")
+            println("White piece count: $whitePieceCount")
+            println("Remaining moves: $remainingMoves")
+            println("Next to move: ${if (remainingMoves == 0) "N/A" else (if (blackToMove) "Black" else "White")}")
+        }
         for (rank in 7 downTo 0) {
             for (file in 7 downTo 0) {
                 val bit = rank * 8 + file
                 val char = when {
                     (whitePositions ushr bit) and 1L == 1L -> "W"
                     (blackPositions ushr bit) and 1L == 1L -> "B"
-                    else -> "0"
+                    else -> " " // don't show empty squares
+                    //else -> "0"
                 }
                 print(if (file == 0) char else "$char  ")
             }
@@ -83,13 +86,4 @@ Black starting position:
 0  0  0  0  0  0  0  0
 0b00000000_00000000_00000000_00001000_00010000_00000000_00000000_00000000L
 */
-
-const val WHITE_STARTING_POSITION = 0b00000000_00000000_00000000_00010000_00001000_00000000_00000000_00000000L
-const val BLACK_STARTING_POSITION = 0b00000000_00000000_00000000_00001000_00010000_00000000_00000000_00000000L
-
-val STARTING_STATE = GameState(
-    WHITE_STARTING_POSITION,
-    BLACK_STARTING_POSITION,
-    BLACK_TO_MOVE
-)
 
