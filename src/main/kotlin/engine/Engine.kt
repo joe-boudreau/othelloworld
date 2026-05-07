@@ -4,22 +4,29 @@ import com.othelloworld.engine.GameStatus.*
 
 class Engine {
 
+    fun getOutcome(board: BoardState): GameStatus {
+        return if (board.whitePieceCount > board.blackPieceCount) {
+            WHITE_WINS
+        } else if (board.blackPieceCount > board.whitePieceCount) {
+            BLACK_WINS
+        } else {
+            DRAW
+        }
+    }
+
+    fun isGameOver(board: BoardState): Boolean {
+        val moves = getNextPossibleMoves(board)
+        return moves.isEmpty() || board.remainingMoves == 0
+    }
+
+    fun validateMove(board: BoardState, move: Int): Boolean {
+        val moves = getNextPossibleMoves(board)
+        return move in moves
+    }
+
     fun makeMove(board: BoardState): Pair<BoardState, GameStatus> {
 
-        val allMoves =
-            if (board.blackToMove) {
-                getAllMoves(board.blackPositions, board.whitePositions)
-            }
-            else {
-                getAllMoves(board.whitePositions, board.blackPositions)
-            }
-
-        val moves = mutableListOf<Int>()
-        for (i in 0 until 64) {
-            if ((allMoves and (1L shl i)) != 0L) {
-                moves.add(i)
-            }
-        }
+        val moves = getNextPossibleMoves(board)
 
         /**
          * Game Over!
@@ -50,7 +57,7 @@ class Engine {
      * Where the magic will inevitably happen.
      */
     private fun chooseMove(
-        moves: MutableList<Int>,
+        moves: List<Int>,
         board: BoardState
     ): BoardState {
         val updatedBoardStates = moves.map { updateBoardState(board, it) }
@@ -60,15 +67,20 @@ class Engine {
         return chosenMoveBoardState
     }
 
-    fun getOutcome(board: BoardState): GameStatus {
-        if (board.whitePieceCount > board.blackPieceCount) {
-            return WHITE_WINS
+    private fun getNextPossibleMoves(board: BoardState): List<Int> {
+        val allMoves =
+            if (board.blackToMove) {
+                getAllMoves(board.blackPositions, board.whitePositions)
+            } else {
+                getAllMoves(board.whitePositions, board.blackPositions)
+            }
+
+        val moves = mutableListOf<Int>()
+        for (i in 0 until 64) {
+            if ((allMoves and (1L shl i)) != 0L) {
+                moves.add(i)
+            }
         }
-        else if (board.blackPieceCount > board.whitePieceCount) {
-            return BLACK_WINS
-        }
-        else {
-            return DRAW
-        }
+        return moves
     }
 }

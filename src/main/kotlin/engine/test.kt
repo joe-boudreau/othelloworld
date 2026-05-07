@@ -10,7 +10,7 @@ fun main() {
 
     val engine = Engine()
     while(status == ONGOING) {
-        sleep(500)
+        sleep(100)
         val (updatedBoardState, updatedStatus) = engine.makeMove(boardState)
         boardState = updatedBoardState
         status = updatedStatus
