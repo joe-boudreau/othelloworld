@@ -35,13 +35,18 @@ class GameOrchestrator(
 
     fun makeEngineMove(): Pair<BoardState, GameStatus> {
         // artificial delay for now
-        sleep(500)
+        sleep(5000)
 
         val (updatedBoardState, _) = engine.makeMove(boardState)
         boardState = updatedBoardState
         updateGameStatus()
         return boardState to gameStatus
     }
+
+    fun validMoves(): List<Int> = engine.getNextPossibleMoves(boardState)
+
+    fun getBoardState() = boardState
+    fun getGameStatus() = gameStatus
 
     private fun updateGameStatus() {
         gameStatus = if (engine.isGameOver(boardState)) {
@@ -50,8 +55,4 @@ class GameOrchestrator(
             GameStatus.ONGOING
         }
     }
-
-    fun getBoardState() = boardState
-    fun getGameStatus() = gameStatus
-    fun validMoves(): List<Int> = engine.getNextPossibleMoves(boardState)
 }

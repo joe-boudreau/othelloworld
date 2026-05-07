@@ -34,29 +34,35 @@ fun Application.configureRouting() {
         }
 
         post("/api/new-game") {
-            call.respondBoard(STARTING_STATE)
+            val orchestrator = GameOrchestrator(STARTING_STATE)
+            call.respondBoard(
+                board = orchestrator.getBoardState(),
+                status = orchestrator.getGameStatus(),
+                validMoves = orchestrator.validMoves(),
+            )
         }
 
         post("/api/player/move") {
             val params = call.receiveParameters()
             val board = params.readBoard()
-            val square = params["square"]?.toIntOrNull()
-                ?: throw MissingFieldException("square")
+            val square = params["square"]?.toIntOrNull() ?: throw MissingFieldException("square")
 
             val orchestrator = GameOrchestrator(board)
             val (newBoard, status) = orchestrator.makePlayerMove(square)
-            val orchestratorAfter = GameOrchestrator(newBoard)
 
             // Tell HTMX to chain into the engine's move iff the game continues
             // and the next-to-move side actually has a move (no pass logic yet).
-            if (status == GameStatus.ONGOING && orchestratorAfter.validMoves().isNotEmpty()) {
+            if (status == GameStatus.ONGOING) {
                 call.response.headers.append("HX-Trigger-After-Settle", "computerMove")
             }
 
-            call.respondText(
-                renderBoardFragment(newBoard, orchestratorAfter.validMoves(), status),
-                ContentType.Text.Html,
-                HttpStatusCode.OK,
+            call.respondBoard(
+                board = newBoard,
+                status = status,
+                validMoves = orchestrator.validMoves(),
+                lastMove = findLastMove(board, newBoard),
+                flippedSquares = findFlippedSquares(board, newBoard),
+                interactive = false, // computer is up next; lock the board until it responds
             )
         }
 
@@ -66,22 +72,59 @@ fun Application.configureRouting() {
 
             val orchestrator = GameOrchestrator(board)
             val (newBoard, status) = orchestrator.makeEngineMove()
-            call.respondBoard(newBoard, status = status)
+
+            call.respondBoard(
+                board = newBoard,
+                status = status,
+                validMoves = orchestrator.validMoves(),
+                lastMove = findLastMove(board, newBoard),
+                flippedSquares = findFlippedSquares(board, newBoard),
+            )
         }
     }
 }
 
 private suspend fun ApplicationCall.respondBoard(
-    boardState: BoardState,
-    status: GameStatus? = null,
+    board: BoardState,
+    status: GameStatus,
+    validMoves: List<Int>,
+    lastMove: Int? = null,
+    flippedSquares: List<Int> = emptyList(),
+    interactive: Boolean = true,
 ) {
-    val orch = GameOrchestrator(boardState)
-    val effectiveStatus = status ?: orch.getGameStatus()
     respondText(
-        renderBoardFragment(boardState, orch.validMoves(), effectiveStatus),
+        renderBoardFragment(board, validMoves, status, lastMove, flippedSquares, interactive),
         ContentType.Text.Html,
         HttpStatusCode.OK,
     )
+}
+
+/**
+ * Identifies squares whose piece changed color between two board states (i.e. were flipped).
+ * A square is flipped iff it was occupied both before and after, but its color changed —
+ * detected via XOR on the white bitboards, masked to squares occupied in both states.
+ */
+private fun findFlippedSquares(before: BoardState, after: BoardState): List<Int> {
+    val occupiedBoth = (before.whitePositions or before.blackPositions) and
+        (after.whitePositions or after.blackPositions)
+    val changedColor = (before.whitePositions xor after.whitePositions) and occupiedBoth
+    val result = mutableListOf<Int>()
+    for (i in 0 until 64) {
+        if ((changedColor ushr i) and 1L == 1L) result.add(i)
+    }
+    return result
+}
+
+/**
+ * Identifies the square just placed by diffing two board states.
+ * A move places exactly one new piece on a previously empty square — that's the bit
+ * that flipped from empty to occupied. Returns null if no piece was placed (e.g., game-over).
+ */
+private fun findLastMove(before: BoardState, after: BoardState): Int? {
+    val emptyBefore = (before.whitePositions or before.blackPositions).inv()
+    val occupiedAfter = after.whitePositions or after.blackPositions
+    val placed = emptyBefore and occupiedAfter
+    return if (placed == 0L) null else java.lang.Long.numberOfTrailingZeros(placed)
 }
 
 private fun Parameters.readBoard(): BoardState {
