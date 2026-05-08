@@ -7,7 +7,7 @@ import kotlinx.html.stream.createHTML
 
 fun renderGamePage(): String = createHTML().html {
     head {
-        title("Othello, World!")
+        title("Othello World")
         script { src = "https://unpkg.com/htmx.org@2.0.4" }
         style {
             unsafe {
@@ -62,7 +62,7 @@ fun renderGamePage(): String = createHTML().html {
         }
     }
     body {
-        h1 { +"Othello" }
+        h1 { +"Othello World" }
         div {
             id = "board-container"
             // Initial #board content is the color picker. Choosing a color swaps in the

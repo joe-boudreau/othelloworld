@@ -37,7 +37,8 @@ class Engine {
             return board to gameStatus
         }
 
-        val chosenMoveBoardState = chooseMove(moves, board)
+        //val chosenMoveBoardState = chooseMoveRandom(moves, board)
+        val chosenMoveBoardState = chooseMoveGreedy(moves, board)
 
         /**
          * The design decision I've made here is to always return ONGOING as the status even if the game
@@ -47,6 +48,7 @@ class Engine {
          * every time this function is called.
          *
          * This is purely for efficiency for when makeMove() is called recursively during engine search.
+         * TODO: Could change this later by introducing an in-memory cache of possible moves. investigate.
          *
          * The game orchestrator parent code will still explicitly check the outcome of the game after every "real" move.
          */
@@ -54,9 +56,9 @@ class Engine {
     }
 
     /**
-     * Where the magic will inevitably happen.
+     * Algorithm 1: Random
      */
-    private fun chooseMove(
+    private fun chooseMoveRandom(
         moves: List<Int>,
         board: BoardState
     ): BoardState {
@@ -65,6 +67,19 @@ class Engine {
         // algorithm 1: pick a random move
         val chosenMoveBoardState = updatedBoardStates.random()
         return chosenMoveBoardState
+    }
+
+    /**
+     * Algorithm 2: Greedy
+     */
+    private fun chooseMoveGreedy(
+        moves: List<Int>,
+        board: BoardState,
+    ): BoardState {
+        val blackToMove = board.blackToMove
+        val updatedBoardStates = moves.map { updateBoardState(board, it) }
+
+        return updatedBoardStates.maxByOrNull { if (blackToMove) it.blackPieceCount else it.whitePieceCount }!!
     }
 
     fun getNextPossibleMoves(board: BoardState): List<Int> {
