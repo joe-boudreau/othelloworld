@@ -35,7 +35,7 @@ class GameOrchestrator(
 
     fun makeEngineMove(): Pair<BoardState, GameStatus> {
         // artificial delay for now
-        sleep(5000)
+        sleep(1000)
 
         val (updatedBoardState, _) = engine.makeMove(boardState)
         boardState = updatedBoardState

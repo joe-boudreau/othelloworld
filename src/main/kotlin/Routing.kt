@@ -33,12 +33,32 @@ fun Application.configureRouting() {
             call.respondText(renderGamePage(), ContentType.Text.Html, HttpStatusCode.OK)
         }
 
+        get("/api/new-game-modal") {
+            call.respondText(renderColorPickerFragment(), ContentType.Text.Html, HttpStatusCode.OK)
+        }
+
         post("/api/new-game") {
+            val params = call.receiveParameters()
+            val rawColor = params["color"] ?: throw MissingFieldException("color")
+            val humanIsBlack = when (rawColor) {
+                "B" -> true
+                "W" -> false
+                "R" -> kotlin.random.Random.nextBoolean()
+                else -> throw MissingFieldException("color (must be B, W, or R)")
+            }
+
             val orchestrator = GameOrchestrator(STARTING_STATE)
+            // Black always moves first in Othello. If the human chose white, the computer plays
+            // black first — chain into /api/computer/move and render the board non-interactive.
+            val computerToMoveFirst = !humanIsBlack
+            if (computerToMoveFirst) {
+                call.response.headers.append("HX-Trigger-After-Settle", "computerMove")
+            }
             call.respondBoard(
                 board = orchestrator.getBoardState(),
                 status = orchestrator.getGameStatus(),
                 validMoves = orchestrator.validMoves(),
+                interactive = !computerToMoveFirst,
             )
         }
 

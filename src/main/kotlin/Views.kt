@@ -46,6 +46,17 @@ fun renderGamePage(): String = createHTML().html {
                 button.action { background: #555; color: #eee; border: none; padding: 0.5rem 1rem; cursor: pointer; border-radius: 4px; }
                 button.action:hover { background: #666; }
                 .htmx-request #board { opacity: 0.6; }
+
+                /* Color-picker shown in #board on initial load and on New Game. */
+                .picker { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3rem 2rem; background: #1a1a1a; border: 2px solid #1a1a1a; min-width: 460px; min-height: 480px; }
+                .picker h2 { margin: 0 0 1.5rem; }
+                .picker .choices { display: flex; gap: 1rem; }
+                .picker button { background: #333; color: #eee; border: 2px solid #555; padding: 1rem 1.5rem; cursor: pointer; border-radius: 6px; font-size: 1rem; display: flex; flex-direction: column; align-items: center; gap: 0.5rem; min-width: 110px; }
+                .picker button:hover { background: #444; border-color: #888; }
+                .picker .swatch { width: 40px; height: 40px; border-radius: 50%; }
+                .picker .swatch.W { background: radial-gradient(circle at 30% 30%, #fff, #d0d0d0); }
+                .picker .swatch.B { background: radial-gradient(circle at 30% 30%, #555, #000); }
+                .picker .swatch.R { background: linear-gradient(135deg, #fff 0%, #fff 49%, #000 51%, #000 100%); }
                 """
             }
         }
@@ -54,17 +65,13 @@ fun renderGamePage(): String = createHTML().html {
         h1 { +"Othello" }
         div {
             id = "board-container"
-            // The board fragment swaps itself in here. On page load we POST to /api/new-game.
-            div {
-                id = "board"
-                attributes["hx-post"] = "/api/new-game"
-                attributes["hx-trigger"] = "load"
-                attributes["hx-swap"] = "outerHTML"
-            }
+            // Initial #board content is the color picker. Choosing a color swaps in the
+            // actual rendered board. The "New Game" button below brings the picker back.
+            unsafe { +renderColorPickerFragment() }
         }
         div("controls") {
             button(classes = "action") {
-                attributes["hx-post"] = "/api/new-game"
+                attributes["hx-get"] = "/api/new-game-modal"
                 attributes["hx-target"] = "#board"
                 attributes["hx-swap"] = "outerHTML"
                 +"New Game"
@@ -168,6 +175,35 @@ private fun FlowContent.flippingDisc(toColor: String) {
     div("disc-3d flipping") {
         div("face front $fromColor") {}
         div("face back $toColor") {}
+    }
+}
+
+/**
+ * Renders the color picker as a `<div id="board">` fragment so it can be swapped
+ * into the same target as the board. Each choice POSTs to /api/new-game with a
+ * `color` parameter (B, W, or R for random).
+ */
+fun renderColorPickerFragment(): String = createHTML().div {
+    id = "board"
+    div("picker") {
+        h2 { +"Choose your color" }
+        div("choices") {
+            listOf(
+                Triple("B", "Black", "Plays first"),
+                Triple("W", "White", "Plays second"),
+                Triple("R", "Random", "Coin flip"),
+            ).forEach { (code, label, sub) ->
+                button {
+                    attributes["hx-post"] = "/api/new-game"
+                    attributes["hx-vals"] = """{"color": "$code"}"""
+                    attributes["hx-target"] = "#board"
+                    attributes["hx-swap"] = "outerHTML"
+                    div("swatch $code") {}
+                    div { +label }
+                    div { style = "font-size: 0.8rem; color: #aaa"; +sub }
+                }
+            }
+        }
     }
 }
 
