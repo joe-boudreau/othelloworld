@@ -4,23 +4,6 @@ const val CENTER_4 = 0b00000000_00000000_00000000_00011000_00011000_00000000_000
 const val LEFT_COLUMN = 0b1000000_10000000_10000000_10000000_10000000_10000000_10000000_10000000L
 const val RIGHT_COLUMN = 0b00000001_00000001_00000001_00000001_00000001_00000001_00000001_00000001L
 
-/**
- * Doesn't exactly check for whether the position is possible to reach, not sure if that's possible
- * This is mostly a sanity check for during development and debugging to catch obvious errors
- */
-fun isValidGameState(board: BoardState): Boolean {
-    val white = board.whitePositions
-    val black = board.blackPositions
-
-    // 1. are any white and black pieces on the same square?
-    if (white and black != 0L) return false
-    // 2. are any pieces not adjacent to each other? (any islands)
-    // todo
-    // 3. are any of the 4 center squares empty?
-    if ((white or black) and CENTER_4 != CENTER_4) return false
-    return true
-}
-
 /*
 
 W/B - piece positions
@@ -74,7 +57,7 @@ what are we looking for?
  7  6  5  4  3  2  1  0
  */
 
-fun getAllMoves(movingPieces: Long, otherPieces: Long): Long =
+fun getAllMoves(movingPieces: PiecePositions, otherPieces: PiecePositions): Long =
     getUpMoves(movingPieces, otherPieces) or
     getDownMoves(movingPieces, otherPieces) or
     getLeftMoves(movingPieces, otherPieces) or
@@ -84,18 +67,18 @@ fun getAllMoves(movingPieces: Long, otherPieces: Long): Long =
     getDownLeftMoves(movingPieces, otherPieces) or
     getDownRightMoves(movingPieces, otherPieces)
 
-fun getUpMoves(movingPieces: Long, otherPieces: Long) = getMoves(movingPieces, otherPieces, 0L) { it shl 8 }
-fun getDownMoves(movingPieces: Long, otherPieces: Long) = getMoves(movingPieces, otherPieces, 0L) { it ushr 8 }
-fun getLeftMoves(movingPieces: Long, otherPieces: Long) = getMoves(movingPieces, otherPieces, LEFT_COLUMN) { it shl 1 }
-fun getRightMoves(movingPieces: Long, otherPieces: Long) = getMoves(movingPieces, otherPieces, RIGHT_COLUMN) { it ushr 1 }
+fun getUpMoves(movingPieces: PiecePositions, otherPieces: PiecePositions) = getMoves(movingPieces, otherPieces, 0L) { it shl 8 }
+fun getDownMoves(movingPieces: PiecePositions, otherPieces: PiecePositions) = getMoves(movingPieces, otherPieces, 0L) { it ushr 8 }
+fun getLeftMoves(movingPieces: PiecePositions, otherPieces: PiecePositions) = getMoves(movingPieces, otherPieces, LEFT_COLUMN) { it shl 1 }
+fun getRightMoves(movingPieces: PiecePositions, otherPieces: PiecePositions) = getMoves(movingPieces, otherPieces, RIGHT_COLUMN) { it ushr 1 }
 
-fun getUpLeftMoves(movingPieces: Long, otherPieces: Long) = getMoves(movingPieces, otherPieces, LEFT_COLUMN) { it shl 9 }
-fun getUpRightMoves(movingPieces: Long, otherPieces: Long) = getMoves(movingPieces, otherPieces, RIGHT_COLUMN) { it shl 7 }
+fun getUpLeftMoves(movingPieces: PiecePositions, otherPieces: PiecePositions) = getMoves(movingPieces, otherPieces, LEFT_COLUMN) { it shl 9 }
+fun getUpRightMoves(movingPieces: PiecePositions, otherPieces: PiecePositions) = getMoves(movingPieces, otherPieces, RIGHT_COLUMN) { it shl 7 }
 
-fun getDownLeftMoves(movingPieces: Long, otherPieces: Long) = getMoves(movingPieces, otherPieces, LEFT_COLUMN) { it ushr 7 }
-fun getDownRightMoves(movingPieces: Long, otherPieces: Long) = getMoves(movingPieces, otherPieces, RIGHT_COLUMN) { it ushr 9 }
+fun getDownLeftMoves(movingPieces: PiecePositions, otherPieces: PiecePositions) = getMoves(movingPieces, otherPieces, LEFT_COLUMN) { it ushr 7 }
+fun getDownRightMoves(movingPieces: PiecePositions, otherPieces: PiecePositions) = getMoves(movingPieces, otherPieces, RIGHT_COLUMN) { it ushr 9 }
 
-fun getMoves(movingPieces: Long, otherPieces: Long, ineligibleMask: Long, moveFn: (Long) -> Long): Long {
+fun getMoves(movingPieces: PiecePositions, otherPieces: PiecePositions, ineligibleMask: Long, moveFn: (Long) -> Long): Long {
     val unoccupied = (movingPieces or otherPieces).inv()
     var eligible = movingPieces and ineligibleMask.inv()
     eligible = moveFn(eligible)

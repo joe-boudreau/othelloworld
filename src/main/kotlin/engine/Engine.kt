@@ -24,6 +24,23 @@ class Engine {
         return move in moves
     }
 
+    fun getNextPossibleMoves(board: BoardState): List<Int> {
+        val allMoves =
+            if (board.blackToMove) {
+                getAllMoves(board.blackPositions, board.whitePositions)
+            } else {
+                getAllMoves(board.whitePositions, board.blackPositions)
+            }
+
+        val moves = mutableListOf<Int>()
+        for (i in 0 until 64) {
+            if ((allMoves and (1L shl i)) != 0L) {
+                moves.add(i)
+            }
+        }
+        return moves
+    }
+
     fun makeMove(board: BoardState): Pair<BoardState, GameStatus> {
 
         val moves = getNextPossibleMoves(board)
@@ -38,7 +55,8 @@ class Engine {
         }
 
         //val chosenMoveBoardState = chooseMoveRandom(moves, board)
-        val chosenMoveBoardState = chooseMoveGreedy(moves, board)
+        //val chosenMoveBoardState = chooseMoveGreedy(moves, board)
+        val chosenMoveBoardState = chooseMoveNegamax(board)
 
         /**
          * The design decision I've made here is to always return ONGOING as the status even if the game
@@ -82,20 +100,46 @@ class Engine {
         return updatedBoardStates.maxByOrNull { if (blackToMove) it.blackPieceCount else it.whitePieceCount }!!
     }
 
-    fun getNextPossibleMoves(board: BoardState): List<Int> {
-        val allMoves =
-            if (board.blackToMove) {
-                getAllMoves(board.blackPositions, board.whitePositions)
-            } else {
-                getAllMoves(board.whitePositions, board.blackPositions)
-            }
+    /**
+     * function negamax(node, depth, color) is
+     *     if depth = 0 or node is a terminal node then
+     *         return color × the heuristic value of node
+     *     value := −∞
+     *     for each child of node do
+     *         value := max(value, −negamax(child, depth − 1, −color))
+     *     return value
+     */
+    private fun chooseMoveNegamax(board: BoardState): BoardState {
+        val (bestMove, bestMoveScore) = getBestMove(board, 5)
+        // debug
+        val color = if (board.blackToMove) "Black" else "White"
+        println("Moving piece: $color,  Best Move: $bestMove, Score: $bestMoveScore")
+        return updateBoardState(board, bestMove)
+    }
 
-        val moves = mutableListOf<Int>()
-        for (i in 0 until 64) {
-            if ((allMoves and (1L shl i)) != 0L) {
-                moves.add(i)
+    private fun getBestMove(
+        board: BoardState,
+        depth: Int,
+    ): Pair<Int, Double> {
+        val color = if (board.blackToMove) 1 else -1
+        if (depth == 0 || board.remainingMoves == 0) {
+            return -1 to color * evaluateBoard(board)
+        }
+
+        val moves = getNextPossibleMoves(board)
+        if (moves.isEmpty()) { // Don't want to check this upfront just to save on some computation in leaf and endgame nodes
+            return -1 to color * evaluateBoard(board)
+        }
+
+        var bestMoveAndScore = -1 to Double.NEGATIVE_INFINITY
+        for (move in moves) {
+            val updatedBoardState = updateBoardState(board, move)
+            val (_, score) = getBestMove(updatedBoardState, depth - 1)
+            val currentMoverScore = -1 * score
+            if (currentMoverScore > bestMoveAndScore.second) {
+                bestMoveAndScore = move to currentMoverScore
             }
         }
-        return moves
+        return bestMoveAndScore
     }
 }
