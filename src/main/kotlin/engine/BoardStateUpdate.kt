@@ -3,10 +3,10 @@ package com.othelloworld.engine
 /**
  * Updates the board state based on a move (0-63)
  */
-fun updateBoardState(board: BoardState, move: Int): BoardState {
+fun updateBoardState(board: BoardState, blackToMove: Boolean, move: Int): BoardState {
     val moveBitboard = 1L shl move
 
-    return if (board.blackToMove) {
+    return if (blackToMove) {
         val (newBlackPieces, newWhitePieces) = updateAllDirections(
             moveBitboard,
             board.blackPositions,

@@ -1,22 +1,5 @@
 package com.othelloworld.engine
 
-fun main() {
-//    val board = generateBoardStateFromBoardString("""
-//        B  0  B  0  0  0  0  0
-//        0  0  0  B  0  0  0  0
-//        0  0  0  B  0  0  0  0
-//        0  0  0  W  B  0  0  0
-//        0  0  0  B  W  0  0  0
-//        0  0  0  0  0  0  0  0
-//        0  0  0  0  0  0  0  0
-//        0  0  0  0  0  0  0  0
-//    """.trimIndent())
-    val board = STARTING_STATE
-    board.print()
-    println("white positional score: ${board.whitePositions.positionalScore()}")
-    println("black positional score: ${board.blackPositions.positionalScore()}")
-    println("eval: ${evaluateBoard(board)}")
-}
 /**
  * Score is between -1 and 1
  * 1 is win for black

@@ -4,58 +4,22 @@ const val CENTER_4 = 0b00000000_00000000_00000000_00011000_00011000_00000000_000
 const val LEFT_COLUMN = 0b1000000_10000000_10000000_10000000_10000000_10000000_10000000_10000000L
 const val RIGHT_COLUMN = 0b00000001_00000001_00000001_00000001_00000001_00000001_00000001_00000001L
 
-/*
+fun getNextPossibleMoves(board: BoardState, blackToMove: Boolean): List<Int> {
+    val allMoves =
+        if (blackToMove) {
+            getAllMoves(board.blackPositions, board.whitePositions)
+        } else {
+            getAllMoves(board.whitePositions, board.blackPositions)
+        }
 
-W/B - piece positions
-w/b - valid moves
-
-0  0  0  0  0  0  0  0
-0  0  0  0  0  0  0  0
-0  0  0  b  0  0  0  0
-0  0  b  W  B  0  0  0
-0  0  0  B  W  b  0  0
-0  0  0  0  b  0  0  0
-0  0  0  0  0  0  0  0
-0  0  0  0  0  0  0  0
-
-need to get a mask that isolates all the squares adjacent to a square
-just make 64 masks?
-
-adjacency mask for square 36
-0  0  0  0  0  0  0  0
-0  0  0  0  0  0  0  0
-0  0  1  1  1  0  0  0
-0  0  1  0  1  0  0  0
-0  0  1  1  1  0  0  0
-0  0  0  0  0  0  0  0
-0  0  0  0  0  0  0  0
-0  0  0  0  0  0  0  0
-0b00000000_00000000_00111000_00101000_00111000_00000000_00000000_00000000L
-
-what are we looking for?
-- unoccupied adjacent square
-- a {moving colour} piece in the opposite direction of the unoccupied square
-- search in {direction} until:
-    - if {non-moving colour} piece, continue search
-    - if {moving colour} piece, return TRUE
-    - if unoccupied or reached edge of board, return FALSE
-- search in all directions until
-    - one direction returns TRUE
-    - all are FALSE
-
-
-*/
-
-/*
-63 62 61 60 59 58 57 56
-55 54 53 52 51 50 49 48
-47 46 45 44 43 42 41 40
-39 38 37 36 35 34 33 32
-31 30 29 28 27 26 25 24
-23 22 21 20 19 18 17 16
-15 14 13 12 11 10  9  8
- 7  6  5  4  3  2  1  0
- */
+    val moves = mutableListOf<Int>()
+    for (i in 0 until 64) {
+        if ((allMoves and (1L shl i)) != 0L) {
+            moves.add(i)
+        }
+    }
+    return moves
+}
 
 fun getAllMoves(movingPieces: PiecePositions, otherPieces: PiecePositions): Long =
     getUpMoves(movingPieces, otherPieces) or

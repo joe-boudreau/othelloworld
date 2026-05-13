@@ -68,8 +68,6 @@ data class BoardState(
     val blackPieceCount: Int = blackPositions.countOneBits()
     val turnNumber: Int = whitePieceCount + blackPieceCount - 4 // 4 is the number of pieces in the centre to start
     val remainingMoves: Int = 64 - whitePieceCount - blackPieceCount
-    val blackToMove: Boolean = turnNumber % 2 == 0 // Black always goes first in Othello
-    val whiteToMove: Boolean = !blackToMove
 
     fun print(withMetadata: Boolean = true) {
         if (withMetadata) {
@@ -77,7 +75,6 @@ data class BoardState(
             println("Black piece count: $blackPieceCount")
             println("White piece count: $whitePieceCount")
             println("Remaining moves: $remainingMoves")
-            println("Next to move: ${if (remainingMoves == 0) "N/A" else (if (blackToMove) "Black" else "White")}")
         }
         for (rank in 7 downTo 0) {
             for (file in 7 downTo 0) {

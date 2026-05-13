@@ -3,7 +3,6 @@ package com.othelloworld
 import com.othelloworld.engine.STARTING_STATE
 import com.othelloworld.engine.generateBoardStateFromBoardString
 import com.othelloworld.engine.getAllMoves
-import com.othelloworld.engine.isValidGameState
 import com.othelloworld.engine.printBoard
 import kotlin.test.*
 
@@ -18,11 +17,6 @@ class MoveGenerationTest {
         println("White pieces: ")
         printBoard(gameState.whitePositions)
         println()
-    }
-
-    @Test
-    fun `test is valid game state`() {
-        assertTrue(isValidGameState(STARTING_STATE))
     }
 
     @Test

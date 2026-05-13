@@ -1,8 +1,14 @@
 package com.othelloworld
 
 import com.othelloworld.engine.BoardState
+import com.othelloworld.engine.Engine
 import com.othelloworld.engine.GameStatus
 import com.othelloworld.engine.STARTING_STATE
+import com.othelloworld.engine.algorithms.Greedy
+import com.othelloworld.engine.algorithms.MoveSelectionAlgorithm
+import com.othelloworld.engine.algorithms.NegamaxSearch
+import com.othelloworld.engine.algorithms.Random
+import com.othelloworld.engine.exceptions.InvalidMoveException
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.plugins.statuspages.*
@@ -40,65 +46,82 @@ fun Application.configureRouting() {
         post("/api/new-game") {
             val params = call.receiveParameters()
             val rawColor = params["color"] ?: throw MissingFieldException("color")
-            val humanIsBlack = when (rawColor) {
+            val algorithm = params.readAlgorithm()
+            val playerPlaysAsBlack = when (rawColor) {
                 "B" -> true
                 "W" -> false
                 "R" -> kotlin.random.Random.nextBoolean()
                 else -> throw MissingFieldException("color (must be B, W, or R)")
             }
 
-            val orchestrator = GameOrchestrator(STARTING_STATE)
+            val engine = Engine(algorithm)
+            val initialBoardState = STARTING_STATE
+            val initialGameStatus = params.readGameStatus()
+
             // Black always moves first in Othello. If the human chose white, the computer plays
             // black first — chain into /api/computer/move and render the board non-interactive.
-            val computerToMoveFirst = !humanIsBlack
-            if (computerToMoveFirst) {
+            val playerPlaysNext = playerPlaysAsBlack
+            if (!playerPlaysNext) {
                 call.response.headers.append("HX-Trigger-After-Settle", "computerMove")
             }
+
             call.respondBoard(
-                board = orchestrator.getBoardState(),
-                status = orchestrator.getGameStatus(),
-                validMoves = orchestrator.validMoves(),
-                interactive = !computerToMoveFirst,
+                board = initialBoardState,
+                status = initialGameStatus,
+                algorithm = algorithm.name,
+                validMoves = engine.getValidMoves(initialBoardState, initialGameStatus),
+                playerPlaysNext = playerPlaysNext,
+                playerJustPlayed = null, // game just started — no one has played yet
             )
         }
 
         post("/api/player/move") {
             val params = call.receiveParameters()
             val board = params.readBoard()
-            val square = params["square"]?.toIntOrNull() ?: throw MissingFieldException("square")
+            val algorithm = params.readAlgorithm()
+            val gameStatus = params.readGameStatus()
+            val moveSquare = params["square"]?.toIntOrNull() ?: throw MissingFieldException("square")
+            val playerPlaysAsBlack = gameStatus.blackToMove()
 
-            val orchestrator = GameOrchestrator(board)
-            val (newBoard, status) = orchestrator.makePlayerMove(square)
+            val engine = Engine(algorithm)
 
-            // Tell HTMX to chain into the engine's move iff the game continues
-            // and the next-to-move side actually has a move (no pass logic yet).
-            if (status == GameStatus.ONGOING) {
-                call.response.headers.append("HX-Trigger-After-Settle", "computerMove")
-            }
+            val (newBoard, newStatus) = engine.makePlayerMove(board, gameStatus, moveSquare)
+
+            val playerPlaysNext = playerPlaysAsBlack && newStatus.blackToMove() || !playerPlaysAsBlack && newStatus.whiteToMove()
 
             call.respondBoard(
                 board = newBoard,
-                status = status,
-                validMoves = orchestrator.validMoves(),
+                status = newStatus,
+                algorithm = algorithm.name,
+                validMoves = engine.getValidMoves(newBoard, newStatus),
                 lastMove = findLastMove(board, newBoard),
                 flippedSquares = findFlippedSquares(board, newBoard),
-                interactive = false, // computer is up next; lock the board until it responds
+                playerPlaysNext = playerPlaysNext,
+                playerJustPlayed = true,
             )
         }
 
         post("/api/computer/move") {
             val params = call.receiveParameters()
             val board = params.readBoard()
+            val algorithm = params.readAlgorithm()
+            val gameStatus = params.readGameStatus()
+            val playerPlaysAsBlack = gameStatus.whiteToMove()
 
-            val orchestrator = GameOrchestrator(board)
-            val (newBoard, status) = orchestrator.makeEngineMove()
+            val engine = Engine(algorithm)
+            val (newBoard, newStatus) = engine.makeEngineMove(board, gameStatus)
+
+            val playerPlaysNext = playerPlaysAsBlack && newStatus.blackToMove() || !playerPlaysAsBlack && newStatus.whiteToMove()
 
             call.respondBoard(
                 board = newBoard,
-                status = status,
-                validMoves = orchestrator.validMoves(),
+                status = newStatus,
+                algorithm = algorithm.name,
+                validMoves = engine.getValidMoves(newBoard, newStatus),
                 lastMove = findLastMove(board, newBoard),
                 flippedSquares = findFlippedSquares(board, newBoard),
+                playerPlaysNext = playerPlaysNext,
+                playerJustPlayed = false,
             )
         }
     }
@@ -107,13 +130,26 @@ fun Application.configureRouting() {
 private suspend fun ApplicationCall.respondBoard(
     board: BoardState,
     status: GameStatus,
+    algorithm: String,
     validMoves: List<Int>,
     lastMove: Int? = null,
     flippedSquares: List<Int> = emptyList(),
-    interactive: Boolean = true,
+    playerPlaysNext: Boolean,
+    playerJustPlayed: Boolean?,
 ) {
+    if (!status.isTerminal() && !playerPlaysNext && playerJustPlayed != false) {
+        // Instantly chain the computer move into the next request. Covers both the
+        // normal "player just played, computer's turn" case and the game-start case
+        // where the player chose white and the computer plays first.
+        this.response.headers.append("HX-Trigger-After-Settle", "computerMove")
+    }
+    // When playerJustPlayed == false && !playerPlaysNext (computer just played, the
+    // player has to pass, computer plays again), we deliberately do NOT chain here.
+    // The rendered board fragment shows a pass-modal explaining the situation and
+    // fires `computerMove` itself after a delay, giving the player time to read it.
+
     respondText(
-        renderBoardFragment(board, validMoves, status, lastMove, flippedSquares, interactive),
+        renderBoardFragment(board, status, algorithm, validMoves, lastMove, flippedSquares, playerPlaysNext, playerJustPlayed),
         ContentType.Text.Html,
         HttpStatusCode.OK,
     )
@@ -153,6 +189,20 @@ private fun Parameters.readBoard(): BoardState {
     val black = this["blackPos"]?.toLongOrNull()
         ?: throw MissingFieldException("blackPos")
     return BoardState(white, black)
+}
+
+private fun Parameters.readGameStatus(): GameStatus {
+    val status = this["status"] ?: throw MissingFieldException("status")
+    return GameStatus.valueOf(status)
+}
+
+private fun Parameters.readAlgorithm(): MoveSelectionAlgorithm {
+    val algorithm = this["algorithm"] ?: NegamaxSearch().name
+    return when (algorithm) {
+        Random().name -> Random()
+        Greedy().name -> Greedy()
+        else -> NegamaxSearch()
+    }
 }
 
 class MissingFieldException(field: String) : Exception("Missing or invalid field: $field")

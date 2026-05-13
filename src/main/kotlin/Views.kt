@@ -57,6 +57,17 @@ fun renderGamePage(): String = createHTML().html {
                 .picker .swatch.W { background: radial-gradient(circle at 30% 30%, #fff, #d0d0d0); }
                 .picker .swatch.B { background: radial-gradient(circle at 30% 30%, #555, #000); }
                 .picker .swatch.R { background: linear-gradient(135deg, #fff 0%, #fff 49%, #000 51%, #000 100%); }
+                .picker h3 { margin: 1.5rem 0 0.75rem; font-size: 1rem; font-weight: normal; color: #aaa; }
+                .picker .algo-choices { display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: center; }
+                .picker .algo-choice { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; background: #333; border: 2px solid #555; padding: 0.5rem 0.75rem; border-radius: 6px; cursor: pointer; min-width: 110px; }
+                .picker .algo-choice:hover { background: #444; border-color: #888; }
+                .picker .algo-choice input { margin: 0; }
+                .picker .algo-choice:has(input:checked) { background: #444; border-color: #ffd54f; }
+
+                /* Modal shown briefly when a side has to pass its move. */
+                .pass-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; animation: pass-fade 3s ease-in-out forwards; }
+                .pass-modal-content { background: #1a1a1a; border: 2px solid #ffd54f; padding: 2rem 3rem; border-radius: 8px; font-size: 1.2rem; text-align: center; max-width: 400px; color: #eee; }
+                @keyframes pass-fade { 0% { opacity: 0 } 10% { opacity: 1 } 85% { opacity: 1 } 100% { opacity: 0 } }
                 """
             }
         }
@@ -86,31 +97,68 @@ fun renderGamePage(): String = createHTML().html {
  */
 fun renderBoardFragment(
     boardState: BoardState,
-    validMoves: List<Int>,
     status: GameStatus,
+    algorithm: String,
+    validMoves: List<Int>,
     lastMove: Int? = null,
     flippedSquares: List<Int> = emptyList(),
-    interactive: Boolean = true,
+    playerPlaysNext: Boolean,
+    playerJustPlayed: Boolean?,
 ): String = createHTML().div {
     id = "board"
 
+    // playerJustPlayed == null means the game just started — no pass modal in that case.
+    val computerPassing = playerJustPlayed == true && playerPlaysNext && !status.isTerminal()
+    val playerPassing = playerJustPlayed == false && !playerPlaysNext && !status.isTerminal()
+
+    if (computerPassing || playerPassing) {
+        div("pass-modal") {
+            div("pass-modal-content") {
+                if (computerPassing) {
+                    +"Computer has no legal moves — your turn again!"
+                } else {
+                    +"You have no legal moves — computer plays again."
+                }
+            }
+        }
+        // Auto-dismiss the modal after the fade-out animation. When the player is
+        // passing, also fire the computerMove event so the engine takes its (second)
+        // turn — Routing intentionally skips HX-Trigger-After-Settle for this case
+        // so the player has time to read the message.
+        script {
+            unsafe {
+                +if (playerPassing) {
+                    "setTimeout(() => { document.querySelector('.pass-modal')?.remove(); htmx.trigger(document.body, 'computerMove'); }, 3000);"
+                } else {
+                    "setTimeout(() => { document.querySelector('.pass-modal')?.remove(); }, 3000);"
+                }
+            }
+        }
+    }
+
     val white = boardState.whitePositions
     val black = boardState.blackPositions
-    val gameOver = status != GameStatus.ONGOING
-    val playerToMove = if (boardState.blackToMove) "B" else "W"
+    val gameOver = status.isTerminal()
+    val playerToMove = if (status.blackToMove()) "B" else "W"
 
     // Hidden inputs that future HTMX requests will pick up via hx-include.
     input(type = InputType.hidden, name = "whitePos") { value = white.toString() }
     input(type = InputType.hidden, name = "blackPos") { value = black.toString() }
+    input(type = InputType.hidden, name = "algorithm") { value = algorithm }
+    input(type = InputType.hidden, name = "status") { value = status.name }
 
     div("meta") {
         +"Turn ${boardState.turnNumber} · "
         +"White ${boardState.whitePieceCount} · "
         +"Black ${boardState.blackPieceCount}"
     }
+
     div("status") {
         +when (status) {
-            GameStatus.ONGOING -> if (boardState.blackToMove) "Black to move" else "White to move"
+            GameStatus.BLACK_TO_MOVE -> "Black to move"
+            GameStatus.BLACK_TO_MOVE_WHITE_PASSING -> "Black to move again (White has no legal moves)"
+            GameStatus.WHITE_TO_MOVE -> "White to move"
+            GameStatus.WHITE_TO_MOVE_BLACK_PASSING -> "White to move again (Black has no legal moves)"
             GameStatus.WHITE_WINS -> "Game over — White wins"
             GameStatus.BLACK_WINS -> "Game over — Black wins"
             GameStatus.DRAW -> "Game over — Draw"
@@ -123,7 +171,7 @@ fun renderBoardFragment(
         div {
             attributes["hx-post"] = "/api/computer/move"
             attributes["hx-trigger"] = "computerMove from:body"
-            attributes["hx-include"] = "[name='whitePos'],[name='blackPos']"
+            attributes["hx-include"] = "[name='whitePos'],[name='blackPos'],[name='algorithm'],[name='status']"
             attributes["hx-target"] = "#board"
             attributes["hx-swap"] = "outerHTML"
             attributes["style"] = "display:none"
@@ -137,13 +185,13 @@ fun renderBoardFragment(
                 val sq = rank * 8 + file
                 val whiteHere = (white ushr sq) and 1L == 1L
                 val blackHere = (black ushr sq) and 1L == 1L
-                val isValid = interactive && !gameOver && sq in validMoves
+                val isValid = playerPlaysNext && !gameOver && sq in validMoves
 
                 if (isValid) {
                     button(classes = "square valid") {
                         attributes["hx-post"] = "/api/player/move"
                         attributes["hx-vals"] = """{"square": $sq}"""
-                        attributes["hx-include"] = "[name='whitePos'],[name='blackPos']"
+                        attributes["hx-include"] = "[name='whitePos'],[name='blackPos'],[name='algorithm'],[name='status']"
                         attributes["hx-target"] = "#board"
                         attributes["hx-swap"] = "outerHTML"
                         div("hint $playerToMove") {}
@@ -192,15 +240,34 @@ fun renderColorPickerFragment(): String = createHTML().div {
                 Triple("B", "Black", "Plays first"),
                 Triple("W", "White", "Plays second"),
                 Triple("R", "Random", "Coin flip"),
-            ).forEach { (code, label, sub) ->
+            ).forEach { (code, colorLabel, sub) ->
                 button {
                     attributes["hx-post"] = "/api/new-game"
-                    attributes["hx-vals"] = """{"color": "$code"}"""
+                    attributes["hx-vals"] = """{"color": "$code", "status": "BLACK_TO_MOVE"}"""
+                    attributes["hx-include"] = "[name='algorithm']"
                     attributes["hx-target"] = "#board"
                     attributes["hx-swap"] = "outerHTML"
                     div("swatch $code") {}
-                    div { +label }
+                    div { +colorLabel }
                     div { style = "font-size: 0.8rem; color: #aaa"; +sub }
+                }
+            }
+        }
+        h3 { +"Engine algorithm" }
+        div("algo-choices") {
+            val algos = listOf(
+                Triple("negamax", "Negamax Search", "Looks ahead"),
+                Triple("greedy", "Greedy", "Maximizes pieces"),
+                Triple("random", "Random", "Picks randomly"),
+            )
+            algos.forEach { (code, algoLabel, sub) ->
+                label("algo-choice") {
+                    input(type = InputType.radio, name = "algorithm") {
+                        value = code
+                        if (code == "negamax") checked = true
+                    }
+                    div { +algoLabel }
+                    div { style = "font-size: 0.75rem; color: #aaa"; +sub }
                 }
             }
         }
