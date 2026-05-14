@@ -11,6 +11,7 @@ import com.othelloworld.engine.updateBoardState
 class NegamaxSearch(private val depth: Int = 7): MoveSelectionAlgorithm {
 
     override val name = "negamax"
+    private var nodesSearched = 0
 
     /**
      * function negamax(node, depth, color) is
@@ -22,6 +23,7 @@ class NegamaxSearch(private val depth: Int = 7): MoveSelectionAlgorithm {
      *     return value
      */
     override fun selectMove(board: BoardState, gameStatus: GameStatus): BoardState {
+        nodesSearched = 0 // reset
         val (bestMove, bestMoveScore) = getBestMove(board, gameStatus, depth)
 
         if (bestMove == -1) {
@@ -31,6 +33,7 @@ class NegamaxSearch(private val depth: Int = 7): MoveSelectionAlgorithm {
         // debug log
         val color = if (gameStatus.blackToMove()) "Black" else "White"
         println("Moving piece: $color,  Best Move: $bestMove, Score: $bestMoveScore")
+        println("Nodes searched: $nodesSearched")
 
         return updateBoardState(board, gameStatus.blackToMove(), bestMove)
     }
@@ -40,6 +43,7 @@ class NegamaxSearch(private val depth: Int = 7): MoveSelectionAlgorithm {
         gameStatus: GameStatus,
         depth: Int,
     ): Pair<Int, Double> {
+        nodesSearched++
         val blackToMove = gameStatus.blackToMove()
         val color = if (blackToMove) 1 else -1
 
@@ -51,18 +55,19 @@ class NegamaxSearch(private val depth: Int = 7): MoveSelectionAlgorithm {
         if (moves.isEmpty()) {
             if (gameStatus.previousPlayerPassed()) {
                 // if the previous player passed, and the current player has no moves either, then the game is over
-                return -1 to color * evaluateBoard(board)
+                return -1 to color * evaluateBoard(board, gameIsOver = true)
             }
 
             val newGameStatus = if (blackToMove) WHITE_TO_MOVE_BLACK_PASSING else BLACK_TO_MOVE_WHITE_PASSING
-            val (_, score) = getBestMove(board, newGameStatus, depth - 1)
+            val (_, score) = getBestMove(board, newGameStatus, depth)
             return -1 to -1 * score
         }
 
         var bestMoveAndScore = -1 to Double.NEGATIVE_INFINITY
         for (move in moves) {
             val updatedBoardState = updateBoardState(board, gameStatus.blackToMove(), move)
-            val (_, score) = getBestMove(updatedBoardState, gameStatus, - 1)
+            val nextStatus = if (blackToMove) WHITE_TO_MOVE else BLACK_TO_MOVE
+            val (_, score) = getBestMove(updatedBoardState, nextStatus, depth - 1)
 
             val currentMoverScore = -1 * score // the current player's motive is to minimize the max score the other player can achieve
             if (currentMoverScore > bestMoveAndScore.second) {

@@ -15,8 +15,9 @@ package com.othelloworld.engine
  *
  * heuristic eval = weighted mix of heuristic eval functions (see below)
  */
-fun evaluateBoard(board: BoardState): Double {
-    val ep = board.endProximity()
+fun evaluateBoard(board: BoardState, gameIsOver: Boolean? = null): Double {
+    // Can override the end proximity calc if the caller knows the game is over due to no legal moves
+    val ep = if (gameIsOver ?: false) 1.0 else board.endProximity()
     return (ep * board.simplePieceScore()) + ((1 - ep) * board.heuristicEval())
 }
 
