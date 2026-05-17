@@ -7,6 +7,7 @@ import com.othelloworld.engine.STARTING_STATE
 import com.othelloworld.engine.algorithms.Greedy
 import com.othelloworld.engine.algorithms.MoveSelectionAlgorithm
 import com.othelloworld.engine.algorithms.NegamaxSearch
+import com.othelloworld.engine.algorithms.NegamaxWithAlphaBetaSearch
 import com.othelloworld.engine.algorithms.Random
 import com.othelloworld.engine.exceptions.InvalidMoveException
 import io.ktor.http.*
@@ -201,6 +202,7 @@ private fun Parameters.readAlgorithm(): MoveSelectionAlgorithm {
     return when (algorithm) {
         Random().name -> Random()
         Greedy().name -> Greedy()
+        NegamaxWithAlphaBetaSearch().name -> NegamaxWithAlphaBetaSearch()
         else -> NegamaxSearch()
     }
 }

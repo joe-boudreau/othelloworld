@@ -7,10 +7,11 @@ import com.othelloworld.engine.evaluateBoard
 import com.othelloworld.engine.exceptions.InvalidGameStatusException
 import com.othelloworld.engine.getNextPossibleMoves
 import com.othelloworld.engine.updateBoardState
+import kotlinx.html.Entities
 
-class NegamaxSearch(private val initDepth: Int = 7): MoveSelectionAlgorithm {
+class NegamaxWithAlphaBetaSearch(private val initDepth: Int = 12): MoveSelectionAlgorithm {
 
-    override val name = "negamax"
+    override val name = "negamax-alpha-beta"
     private var nodesSearched = 0
 
     override fun selectMove(board: BoardState, gameStatus: GameStatus): BoardState {
@@ -30,17 +31,25 @@ class NegamaxSearch(private val initDepth: Int = 7): MoveSelectionAlgorithm {
     }
 
     /**
-     * function negamax(node, depth, color) is
+     * function negamax(node, depth, α, β, color) is
      *     if depth = 0 or node is a terminal node then
      *         return color × the heuristic value of node
+     *
+     *     childNodes := generateMoves(node)
+     *     childNodes := orderMoves(childNodes)
      *     value := −∞
-     *     for each child of node do
-     *         value := max(value, −negamax(child, depth − 1, −color))
+     *     foreach child in childNodes do
+     *         value := max(value, −negamax(child, depth − 1, −β, −α, −color))
+     *         α := max(α, value)
+     *         if α ≥ β then
+     *             break (* cut-off *)
      *     return value
      */
     private fun getBestMove(
         board: BoardState,
         gameStatus: GameStatus,
+        alpha: Double = Double.NEGATIVE_INFINITY,
+        beta: Double = Double.POSITIVE_INFINITY,
         depth: Int = initDepth,
     ): Pair<Int, Double> {
         nodesSearched++
@@ -52,28 +61,71 @@ class NegamaxSearch(private val initDepth: Int = 7): MoveSelectionAlgorithm {
         }
 
         val moves = getNextPossibleMoves(board, blackToMove)
-        if (moves.isEmpty()) {
+        val orderedMoves = moves.sortedByDescending(this::moveSorter)
+        if (orderedMoves.isEmpty()) {
             if (gameStatus.previousPlayerPassed()) {
                 // if the previous player passed, and the current player has no moves either, then the game is over
                 return -1 to color * evaluateBoard(board, gameIsOver = true)
             }
 
             val newGameStatus = if (blackToMove) WHITE_TO_MOVE_BLACK_PASSING else BLACK_TO_MOVE_WHITE_PASSING
-            val (_, score) = getBestMove(board, newGameStatus, depth)
+            val (_, score) = getBestMove(board, newGameStatus, -beta, -alpha, depth)
             return -1 to -1 * score
         }
 
         var bestMoveAndScore = -1 to Double.NEGATIVE_INFINITY
-        for (move in moves) {
+        var newAlpha = alpha
+        for (move in orderedMoves) {
             val updatedBoardState = updateBoardState(board, gameStatus.blackToMove(), move)
             val nextStatus = if (blackToMove) WHITE_TO_MOVE else BLACK_TO_MOVE
-            val (_, score) = getBestMove(updatedBoardState, nextStatus, depth - 1)
-
+            val (_, score) = getBestMove(updatedBoardState, nextStatus, -beta, -newAlpha, depth - 1)
             val currentMoverScore = -1 * score // the current player's motive is to minimize the max score the other player can achieve
+
+            newAlpha = maxOf(newAlpha, currentMoverScore)
+            if (newAlpha >= beta) {
+                break
+            }
+
             if (currentMoverScore > bestMoveAndScore.second) {
                 bestMoveAndScore = move to currentMoverScore
             }
         }
         return bestMoveAndScore
     }
+
+
+    /**
+     * basic sorting by distance from board center
+     * notation
+     * 63 62 61 60 59 58 57 56
+     * 55 54 53 52 51 50 49 48
+     * 47 46 45 44 43 42 41 40
+     * 39 38 37 36 35 34 33 32
+     * 31 30 29 28 27 26 25 24
+     * 23 22 21 20 19 18 17 16
+     * 15 14 13 12 11 10  9  8
+     *  7  6  5  4  3  2  1  0
+     *
+     * empty
+     * 4  3  3  3  3  3  3  4
+     * 3  2  2  2  2  2  2  3
+     * 3  2  1  1  1  1  2  3
+     * 3  2  1  0  0  1  2  3
+     * 3  2  1  0  0  1  2  3
+     * 3  2  1  1  1  1  2  3
+     * 3  2  2  2  2  2  2  3
+     * 4  3  3  3  3  3  3  4
+     */
+    private fun moveSorter(move: Int) = squareSortingScore[move]
+
+    private val squareSortingScore = intArrayOf(
+        4, 3, 3, 3, 3, 3, 3, 4,
+        3, 2, 2, 2, 2, 2, 2, 3,
+        3, 2, 1, 1, 1, 1, 2, 3,
+        3, 2, 1, 0, 0, 1, 2, 3,
+        3, 2, 1, 0, 0, 1, 2, 3,
+        3, 2, 1, 1, 1, 1, 2, 3,
+        3, 2, 2, 2, 2, 2, 2, 3,
+        4, 3, 3, 3, 3, 3, 3, 4,
+    )
 }

@@ -12,17 +12,18 @@ fun renderGamePage(): String = createHTML().html {
         style {
             unsafe {
                 +"""
-                body { font-family: system-ui, sans-serif; background: #2b2b2b; color: #eee; display: flex; flex-direction: column; align-items: center; padding: 2rem; }
-                h1 { margin-top: 0; }
-                #board-container { display: inline-block; }
-                .board { display: grid; grid-template-columns: repeat(8, 56px); grid-template-rows: repeat(8, 56px); gap: 2px; background: #1a1a1a; padding: 4px; border: 2px solid #1a1a1a; perspective: 800px; }
-                .square { background: #2e7d32; display: flex; align-items: center; justify-content: center; padding: 0; border: none; cursor: default; }
-                .square.valid { cursor: pointer; background: #388e3c; }
+                * { box-sizing: border-box; }
+                body { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; background: #f2f2ef; color: #000; padding: 2rem; margin: 0; width: max-content; }
+                h1 { margin: 0 0 1.5rem; font-size: 2rem; font-weight: 700; letter-spacing: -0.02em; text-transform: uppercase; border-bottom: 3px solid #000; padding-bottom: 0.5rem; }
+                #board-container { display: block; width: 454px; }
+                .board { display: grid; grid-template-columns: repeat(8, 56px); grid-template-rows: repeat(8, 56px); gap: 0; background: #000; padding: 0; border: 3px solid #000; perspective: 800px; }
+                .square { background: #2e7d32; display: flex; align-items: center; justify-content: center; padding: 0; border: 1px solid #000; cursor: default; }
+                .square.valid { cursor: pointer; background: #2e7d32; }
                 .square.valid:hover { background: #4caf50; }
-                .square.last-move { box-shadow: inset 0 0 0 3px #ffd54f; }
+                .square.last-move { outline: 3px solid #ff3b00; outline-offset: -3px; }
                 .disc { width: 42px; height: 42px; border-radius: 50%; }
-                .disc.W { background: radial-gradient(circle at 30% 30%, #fff, #d0d0d0); }
-                .disc.B { background: radial-gradient(circle at 30% 30%, #555, #000); }
+                .disc.W { background: #fff; border: 1px solid #000; }
+                .disc.B { background: #000; }
 
                 /* 3D coin used for flipping pieces — two faces with a tiny Z thickness
                    so a thin edge stays visible as the disc rotates through 90°. */
@@ -31,42 +32,63 @@ fun renderGamePage(): String = createHTML().html {
                 .disc-3d .face { position: absolute; inset: 0; border-radius: 50%; backface-visibility: hidden; }
                 .disc-3d .face.front { transform: translateZ(2px); }
                 .disc-3d .face.back  { transform: rotateY(180deg) translateZ(2px); }
-                .disc-3d .face.W { background: radial-gradient(circle at 30% 30%, #fff, #d0d0d0); }
-                .disc-3d .face.B { background: radial-gradient(circle at 30% 30%, #555, #000); }
+                .disc-3d .face.W { background: #fff; border: 1px solid #000; }
+                .disc-3d .face.B { background: #000; }
                 @keyframes flip {
                     from { transform: rotateY(0deg); }
                     to   { transform: rotateY(180deg); }
                 }
-                .hint { width: 14px; height: 14px; border-radius: 50%; opacity: 0.4; }
-                .hint.W { background: #fff; }
+                .hint { width: 14px; height: 14px; border-radius: 50%; opacity: 0.35; }
+                .hint.W { background: #fff; border: 1px solid #000; }
                 .hint.B { background: #000; }
-                .status { margin: 1rem 0; font-size: 1.1rem; }
-                .meta { color: #aaa; font-size: 0.9rem; margin-bottom: 0.5rem; }
-                .controls { margin-top: 1rem; }
-                button.action { background: #555; color: #eee; border: none; padding: 0.5rem 1rem; cursor: pointer; border-radius: 4px; }
-                button.action:hover { background: #666; }
+                .meta { color: #000; font-size: 0.75rem; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.7; }
+                .turn-bar { display: flex; align-items: center; gap: 0.75rem; padding: 0.6rem 0.8rem; margin-bottom: 0.5rem; border: 3px solid #000; font-size: 0.95rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; }
+                .turn-bar.player { background: #000; color: #f2f2ef; }
+                .turn-bar.engine { background: #f2f2ef; color: #000; }
+                .turn-bar.gameover { background: #ff3b00; color: #000; justify-content: center; }
+                .turn-bar.gameover.lose { background: #000; color: #ff3b00; }
+                .turn-bar.gameover.draw { background: #f2f2ef; color: #000; }
+                .turn-disc { width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0; }
+                .turn-disc.W { background: #fff; border: 1px solid #000; }
+                .turn-disc.B { background: #000; border: 1px solid #f2f2ef; }
+                .turn-label { flex: 1; }
+                .thinking-blocks { display: flex; gap: 4px; }
+                .thinking-blocks .blk { width: 14px; height: 14px; background: #000; animation: think 900ms steps(1) infinite; }
+                .thinking-blocks .blk:nth-child(2) { animation-delay: 150ms; }
+                .thinking-blocks .blk:nth-child(3) { animation-delay: 300ms; }
+                @keyframes think { 0%, 50% { opacity: 1; } 50.01%, 100% { opacity: 0.15; } }
+                .htmx-request .turn-bar.engine { background: #000; color: #f2f2ef; }
+                .htmx-request .turn-bar.engine .thinking-blocks .blk { background: #f2f2ef; }
+                .controls { margin-top: 1.5rem; }
+                button.action { background: #000; color: #f2f2ef; border: 3px solid #000; padding: 0.5rem 1rem; cursor: pointer; border-radius: 0; font-family: inherit; font-size: 0.9rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+                button.action:hover { background: #f2f2ef; color: #000; }
                 .htmx-request #board { opacity: 0.6; }
 
                 /* Color-picker shown in #board on initial load and on New Game. */
-                .picker { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3rem 2rem; background: #1a1a1a; border: 2px solid #1a1a1a; min-width: 460px; min-height: 480px; }
-                .picker h2 { margin: 0 0 1.5rem; }
-                .picker .choices { display: flex; gap: 1rem; }
-                .picker button { background: #333; color: #eee; border: 2px solid #555; padding: 1rem 1.5rem; cursor: pointer; border-radius: 6px; font-size: 1rem; display: flex; flex-direction: column; align-items: center; gap: 0.5rem; min-width: 110px; }
-                .picker button:hover { background: #444; border-color: #888; }
-                .picker .swatch { width: 40px; height: 40px; border-radius: 50%; }
-                .picker .swatch.W { background: radial-gradient(circle at 30% 30%, #fff, #d0d0d0); }
-                .picker .swatch.B { background: radial-gradient(circle at 30% 30%, #555, #000); }
-                .picker .swatch.R { background: linear-gradient(135deg, #fff 0%, #fff 49%, #000 51%, #000 100%); }
-                .picker h3 { margin: 1.5rem 0 0.75rem; font-size: 1rem; font-weight: normal; color: #aaa; }
-                .picker .algo-choices { display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: center; }
-                .picker .algo-choice { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; background: #333; border: 2px solid #555; padding: 0.5rem 0.75rem; border-radius: 6px; cursor: pointer; min-width: 110px; }
-                .picker .algo-choice:hover { background: #444; border-color: #888; }
-                .picker .algo-choice input { margin: 0; }
-                .picker .algo-choice:has(input:checked) { background: #444; border-color: #ffd54f; }
+                .picker { display: block; padding: 1.25rem; background: #f2f2ef; border: 3px solid #000; width: 454px; min-height: 454px; }
+                .picker h2 { margin: 0 0 1rem; font-size: 1.1rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #000; padding-bottom: 0.5rem; }
+                .picker .choices { display: flex; gap: 0; }
+                .picker button { background: #f2f2ef; color: #000; border: 2px solid #000; border-right-width: 0; padding: 0.75rem 1rem; cursor: pointer; border-radius: 0; font-family: inherit; font-size: 0.9rem; display: flex; flex-direction: row; align-items: center; gap: 0.6rem; flex: 1; text-align: left; }
+                .picker button:last-child { border-right-width: 2px; }
+                .picker button:hover { background: #000; color: #f2f2ef; }
+                .picker button:hover .swatch.W { border-color: #f2f2ef; }
+                .picker .swatch { width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0; }
+                .picker .swatch.W { background: #fff; border: 1px solid #000; }
+                .picker .swatch.B { background: #000; border: 1px solid #000; }
+                .picker .swatch.R { background: linear-gradient(135deg, #fff 0%, #fff 49%, #000 51%, #000 100%); border: 1px solid #000; }
+                .picker h3 { margin: 1.5rem 0 0.75rem; font-size: 0.9rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #000; border-bottom: 1px solid #000; padding-bottom: 0.5rem; }
+                .picker .algo-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+                .picker .algo-choice { display: flex; flex-direction: row; align-items: center; gap: 0.5rem; background: #f2f2ef; border: 2px solid #000; border-right-width: 0; border-bottom-width: 0; padding: 0.6rem 0.75rem; border-radius: 0; cursor: pointer; font-size: 0.8rem; }
+                .picker .algo-choice:nth-child(2n) { border-right-width: 2px; }
+                .picker .algo-choice:nth-last-child(-n+2) { border-bottom-width: 2px; }
+                .picker .algo-choice:hover { background: #e0e0dc; }
+                .picker .algo-choice input { margin: 0; accent-color: #000; }
+                .picker .algo-choice:has(input:checked) { background: #000; color: #f2f2ef; }
+                .picker .algo-choice div { line-height: 1.2; }
 
                 /* Modal shown briefly when a side has to pass its move. */
-                .pass-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; animation: pass-fade 3s ease-in-out forwards; }
-                .pass-modal-content { background: #1a1a1a; border: 2px solid #ffd54f; padding: 2rem 3rem; border-radius: 8px; font-size: 1.2rem; text-align: center; max-width: 400px; color: #eee; }
+                .pass-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 1000; animation: pass-fade 3s ease-in-out forwards; }
+                .pass-modal-content { background: #f2f2ef; border: 3px solid #000; padding: 1.5rem 2rem; border-radius: 0; font-size: 1rem; font-weight: 700; text-transform: uppercase; text-align: center; max-width: 400px; color: #000; }
                 @keyframes pass-fade { 0% { opacity: 0 } 10% { opacity: 1 } 85% { opacity: 1 } 100% { opacity: 0 } }
                 """
             }
@@ -140,6 +162,8 @@ fun renderBoardFragment(
     val black = boardState.blackPositions
     val gameOver = status.isTerminal()
     val playerToMove = if (status.blackToMove()) "B" else "W"
+    val playerIsBlack = if (playerPlaysNext) status.blackToMove() else !status.blackToMove()
+    val playerColor = if (playerIsBlack) "B" else "W"
 
     // Hidden inputs that future HTMX requests will pick up via hx-include.
     input(type = InputType.hidden, name = "whitePos") { value = white.toString() }
@@ -148,20 +172,40 @@ fun renderBoardFragment(
     input(type = InputType.hidden, name = "status") { value = status.name }
 
     div("meta") {
-        +"Turn ${boardState.turnNumber} · "
-        +"White ${boardState.whitePieceCount} · "
-        +"Black ${boardState.blackPieceCount}"
+        +"TURN ${boardState.turnNumber} / W ${boardState.whitePieceCount} / B ${boardState.blackPieceCount} / "
+        +algorithm.uppercase()
     }
 
-    div("status") {
-        +when (status) {
-            GameStatus.BLACK_TO_MOVE -> "Black to move"
-            GameStatus.BLACK_TO_MOVE_WHITE_PASSING -> "Black to move again (White has no legal moves)"
-            GameStatus.WHITE_TO_MOVE -> "White to move"
-            GameStatus.WHITE_TO_MOVE_BLACK_PASSING -> "White to move again (Black has no legal moves)"
-            GameStatus.WHITE_WINS -> "Game over — White wins"
-            GameStatus.BLACK_WINS -> "Game over — Black wins"
-            GameStatus.DRAW -> "Game over — Draw"
+    when {
+        gameOver -> {
+            val resultClass = when (status) {
+                GameStatus.WHITE_WINS -> if (playerIsBlack) "lose" else "win"
+                GameStatus.BLACK_WINS -> if (playerIsBlack) "win" else "lose"
+                else -> "draw"
+            }
+            val resultText = when (status) {
+                GameStatus.WHITE_WINS -> "GAME OVER / WHITE WINS"
+                GameStatus.BLACK_WINS -> "GAME OVER / BLACK WINS"
+                GameStatus.DRAW -> "GAME OVER / DRAW"
+                else -> ""
+            }
+            div("turn-bar gameover $resultClass") { +resultText }
+        }
+        playerPlaysNext -> {
+            div("turn-bar player") {
+                div("turn-disc $playerColor") {}
+                span("turn-label") { +"YOUR MOVE" }
+            }
+        }
+        else -> {
+            div("turn-bar engine") {
+                span("turn-label") { +"ENGINE THINKING" }
+                div("thinking-blocks") {
+                    div("blk") {}
+                    div("blk") {}
+                    div("blk") {}
+                }
+            }
         }
     }
 
@@ -248,15 +292,18 @@ fun renderColorPickerFragment(): String = createHTML().div {
                     attributes["hx-target"] = "#board"
                     attributes["hx-swap"] = "outerHTML"
                     div("swatch $code") {}
-                    div { +colorLabel }
-                    div { style = "font-size: 0.8rem; color: #aaa"; +sub }
+                    div {
+                        div { style = "font-weight: 700; text-transform: uppercase;"; +colorLabel }
+                        div { style = "font-size: 0.75rem; opacity: 0.7;"; +sub }
+                    }
                 }
             }
         }
         h3 { +"Engine algorithm" }
         div("algo-choices") {
             val algos = listOf(
-                Triple("negamax", "Negamax Search", "Looks ahead"),
+                Triple("negamax-alpha-beta", "Negamax + αβ", "Pruned search"),
+                Triple("negamax", "Negamax", "Looks ahead"),
                 Triple("greedy", "Greedy", "Maximizes pieces"),
                 Triple("random", "Random", "Picks randomly"),
             )
@@ -264,10 +311,12 @@ fun renderColorPickerFragment(): String = createHTML().div {
                 label("algo-choice") {
                     input(type = InputType.radio, name = "algorithm") {
                         value = code
-                        if (code == "negamax") checked = true
+                        if (code == "negamax-alpha-beta") checked = true
                     }
-                    div { +algoLabel }
-                    div { style = "font-size: 0.75rem; color: #aaa"; +sub }
+                    div {
+                        div { style = "font-weight: 700; text-transform: uppercase;"; +algoLabel }
+                        div { style = "font-size: 0.7rem; opacity: 0.7;"; +sub }
+                    }
                 }
             }
         }
