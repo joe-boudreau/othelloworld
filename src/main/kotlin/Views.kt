@@ -9,6 +9,54 @@ fun renderGamePage(): String = createHTML().html {
     head {
         title("Othello World")
         script { src = "https://unpkg.com/htmx.org@2.0.4" }
+        script {
+            unsafe {
+                +"""
+                (function() {
+                  const KEY = 'othello-game-state';
+                  const TERMINAL = ['BLACK_WINS', 'WHITE_WINS', 'DRAW'];
+
+                  function readBoardState() {
+                    const board = document.querySelector('#board');
+                    if (!board) return null;
+                    const get = (n) => board.querySelector('input[name="' + n + '"]');
+                    const wp = get('whitePos'), bp = get('blackPos'), algo = get('algorithm'),
+                          stat = get('status'), pc = get('playerColor');
+                    if (!wp || !bp || !algo || !stat || !pc) return null;
+                    return {
+                      whitePos: wp.value, blackPos: bp.value, algorithm: algo.value,
+                      status: stat.value, playerColor: pc.value
+                    };
+                  }
+
+                  document.addEventListener('htmx:afterSwap', function() {
+                    const s = readBoardState();
+                    if (!s) {
+                      // Picker (or other non-board content) was swapped in.
+                      if (document.querySelector('#board .picker')) localStorage.removeItem(KEY);
+                      return;
+                    }
+                    if (TERMINAL.includes(s.status)) {
+                      localStorage.removeItem(KEY);
+                      return;
+                    }
+                    localStorage.setItem(KEY, JSON.stringify(s));
+                  });
+
+                  document.addEventListener('DOMContentLoaded', function() {
+                    const raw = localStorage.getItem(KEY);
+                    if (!raw) return;
+                    let s;
+                    try { s = JSON.parse(raw); } catch(e) { localStorage.removeItem(KEY); return; }
+                    if (!s || TERMINAL.includes(s.status)) { localStorage.removeItem(KEY); return; }
+                    htmx.ajax('POST', '/api/resume-game', {
+                      target: '#board', swap: 'outerHTML', values: s
+                    });
+                  });
+                })();
+                """.trimIndent()
+            }
+        }
         style {
             unsafe {
                 +"""
@@ -62,6 +110,7 @@ fun renderGamePage(): String = createHTML().html {
                 .controls { margin-top: 1.5rem; }
                 button.action { background: #000; color: #f2f2ef; border: 3px solid #000; padding: 0.5rem 1rem; cursor: pointer; border-radius: 0; font-family: inherit; font-size: 0.9rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
                 button.action:hover { background: #f2f2ef; color: #000; }
+                body:has(.picker) button.action { opacity: 0.4; pointer-events: none; cursor: not-allowed; }
                 .htmx-request #board { opacity: 0.6; }
 
                 /* Color-picker shown in #board on initial load and on New Game. */
@@ -170,6 +219,7 @@ fun renderBoardFragment(
     input(type = InputType.hidden, name = "blackPos") { value = black.toString() }
     input(type = InputType.hidden, name = "algorithm") { value = algorithm }
     input(type = InputType.hidden, name = "status") { value = status.name }
+    input(type = InputType.hidden, name = "playerColor") { value = playerColor }
 
     div("meta") {
         +"TURN ${boardState.turnNumber} / W ${boardState.whitePieceCount} / B ${boardState.blackPieceCount} / "
@@ -212,9 +262,13 @@ fun renderBoardFragment(
     // Hidden chain element. After a player move, the server sets HX-Trigger: computerMove,
     // which fires this element's request to make the engine respond.
     if (!gameOver) {
+        val delayMs = when (algorithm) {
+            "random", "greedy" -> 1000
+            else -> 500
+        }
         div {
             attributes["hx-post"] = "/api/computer/move"
-            attributes["hx-trigger"] = "computerMove from:body"
+            attributes["hx-trigger"] = "computerMove from:body delay:${delayMs}ms"
             attributes["hx-include"] = "[name='whitePos'],[name='blackPos'],[name='algorithm'],[name='status']"
             attributes["hx-target"] = "#board"
             attributes["hx-swap"] = "outerHTML"
@@ -302,19 +356,19 @@ fun renderColorPickerFragment(): String = createHTML().div {
         h3 { +"Engine algorithm" }
         div("algo-choices") {
             val algos = listOf(
-                Triple("negamax-alpha-beta", "Negamax + αβ", "Pruned search"),
-                Triple("negamax", "Negamax", "Looks ahead"),
-                Triple("greedy", "Greedy", "Maximizes pieces"),
-                Triple("random", "Random", "Picks randomly"),
+                Triple("negamax-alpha-beta", "NEGAMAX + αβ", "Pruned search"),
+                Triple("negamax", "NEGAMAX", "Looks ahead"),
+                Triple("greedy", "GREEDY", "Maximizes pieces"),
+                Triple("random", "RANDOM", "Picks randomly"),
             )
             algos.forEach { (code, algoLabel, sub) ->
                 label("algo-choice") {
                     input(type = InputType.radio, name = "algorithm") {
                         value = code
-                        if (code == "negamax-alpha-beta") checked = true
+                        if (code == "negamax") checked = true
                     }
                     div {
-                        div { style = "font-weight: 700; text-transform: uppercase;"; +algoLabel }
+                        div { style = "font-weight: 700;"; +algoLabel }
                         div { style = "font-size: 0.7rem; opacity: 0.7;"; +sub }
                     }
                 }

@@ -102,6 +102,31 @@ fun Application.configureRouting() {
             )
         }
 
+        post("/api/resume-game") {
+            val params = call.receiveParameters()
+            val board = params.readBoard()
+            val algorithm = params.readAlgorithm()
+            val gameStatus = params.readGameStatus()
+            val playerColor = params["playerColor"] ?: throw MissingFieldException("playerColor")
+            val playerPlaysAsBlack = when (playerColor) {
+                "B" -> true
+                "W" -> false
+                else -> throw MissingFieldException("playerColor (must be B or W)")
+            }
+            val playerPlaysNext = (playerPlaysAsBlack && gameStatus.blackToMove()) ||
+                (!playerPlaysAsBlack && gameStatus.whiteToMove())
+
+            val engine = Engine(algorithm)
+            call.respondBoard(
+                board = board,
+                status = gameStatus,
+                algorithm = algorithm.name,
+                validMoves = engine.getValidMoves(board, gameStatus),
+                playerPlaysNext = playerPlaysNext,
+                playerJustPlayed = null,
+            )
+        }
+
         post("/api/computer/move") {
             val params = call.receiveParameters()
             val board = params.readBoard()

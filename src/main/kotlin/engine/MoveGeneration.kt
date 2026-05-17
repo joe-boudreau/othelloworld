@@ -1,6 +1,5 @@
 package com.othelloworld.engine
 
-const val CENTER_4 = 0b00000000_00000000_00000000_00011000_00011000_00000000_00000000_00000000L
 const val LEFT_COLUMN = 0b1000000_10000000_10000000_10000000_10000000_10000000_10000000_10000000L
 const val RIGHT_COLUMN = 0b00000001_00000001_00000001_00000001_00000001_00000001_00000001_00000001L
 
@@ -57,6 +56,3 @@ fun getMoves(movingPieces: PiecePositions, otherPieces: PiecePositions, ineligib
     }
     return validMoves
 }
-
-fun PiecePositions.isOccupied(square: Int) = (this and (1L shl square)) != 0L
-
