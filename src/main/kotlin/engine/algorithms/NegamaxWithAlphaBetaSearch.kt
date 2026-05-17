@@ -80,15 +80,15 @@ class NegamaxWithAlphaBetaSearch(private val initDepth: Int = 12): MoveSelection
             val nextStatus = if (blackToMove) WHITE_TO_MOVE else BLACK_TO_MOVE
             val (_, score) = getBestMove(updatedBoardState, nextStatus, -beta, -newAlpha, depth - 1)
             val currentMoverScore = -1 * score // the current player's motive is to minimize the max score the other player can achieve
+            if (currentMoverScore > bestMoveAndScore.second) {
+                bestMoveAndScore = move to currentMoverScore
+            }
 
             newAlpha = maxOf(newAlpha, currentMoverScore)
             if (newAlpha >= beta) {
                 break
             }
 
-            if (currentMoverScore > bestMoveAndScore.second) {
-                bestMoveAndScore = move to currentMoverScore
-            }
         }
         return bestMoveAndScore
     }
