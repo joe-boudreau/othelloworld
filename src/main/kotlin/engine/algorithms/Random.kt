@@ -11,7 +11,10 @@ import com.othelloworld.engine.updateBoardState
  */
 class Random: MoveSelectionAlgorithm {
 
-    override val name: String = "random"
+    companion object {
+        const val NAME = "random"
+    }
+    override val name = NAME
 
     override fun selectMove(board: BoardState, gameStatus: GameStatus): BoardState {
         val moves = getNextPossibleMoves(board, gameStatus.blackToMove())

@@ -8,9 +8,13 @@ import com.othelloworld.engine.exceptions.InvalidGameStatusException
 import com.othelloworld.engine.getNextPossibleMoves
 import com.othelloworld.engine.updateBoardState
 
-class NegamaxSearch(private val initDepth: Int = 7): MoveSelectionAlgorithm {
+class NegamaxSearch(private val initDepth: Int): MoveSelectionAlgorithm {
 
-    override val name = "negamax"
+    companion object {
+        const val NAME = "negamax"
+    }
+    override val name = NAME
+
     private var nodesSearched = 0
 
     override fun selectMove(board: BoardState, gameStatus: GameStatus): BoardState {

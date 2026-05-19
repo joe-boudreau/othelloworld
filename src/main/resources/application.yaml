@@ -4,3 +4,7 @@ ktor:
   application:
     modules:
       - com.othelloworld.RoutingKt.configureRouting
+
+app:
+  engine:
+    baseSearchDepth: "$BASE_SEARCH_DEPTH:7"

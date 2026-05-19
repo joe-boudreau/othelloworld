@@ -9,9 +9,14 @@ import com.othelloworld.engine.getNextPossibleMoves
 import com.othelloworld.engine.updateBoardState
 import kotlinx.html.Entities
 
-class NegamaxWithAlphaBetaSearch(private val initDepth: Int = 12): MoveSelectionAlgorithm {
+class NegamaxWithAlphaBetaSearch(baseSearchDepth: Int): MoveSelectionAlgorithm {
 
-    override val name = "negamax-alpha-beta"
+    companion object {
+        const val NAME = "negamax-alpha-beta"
+    }
+    override val name = NAME
+
+    private val initDepth = baseSearchDepth + 4
     private var nodesSearched = 0
 
     override fun selectMove(board: BoardState, gameStatus: GameStatus): BoardState {

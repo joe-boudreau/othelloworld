@@ -11,7 +11,10 @@ import com.othelloworld.engine.updateBoardState
  */
 class Greedy: MoveSelectionAlgorithm {
 
-    override val name: String = "greedy"
+    companion object {
+        const val NAME = "greedy"
+    }
+    override val name = NAME
 
     override fun selectMove(board: BoardState, gameStatus: GameStatus): BoardState {
         val moves = getNextPossibleMoves(board, gameStatus.blackToMove())

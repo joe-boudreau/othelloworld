@@ -18,6 +18,8 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 
 fun Application.configureRouting() {
+    val baseSearchDepth = environment.config.property("app.engine.baseSearchDepth").getString().toInt()
+
     install(StatusPages) {
         exception<InvalidMoveException> { call, cause ->
             call.respondText(
@@ -47,7 +49,7 @@ fun Application.configureRouting() {
         post("/api/new-game") {
             val params = call.receiveParameters()
             val rawColor = params["color"] ?: throw MissingFieldException("color")
-            val algorithm = params.readAlgorithm()
+            val algorithm = params.readAlgorithm(baseSearchDepth)
             val playerPlaysAsBlack = when (rawColor) {
                 "B" -> true
                 "W" -> false
@@ -79,7 +81,7 @@ fun Application.configureRouting() {
         post("/api/player/move") {
             val params = call.receiveParameters()
             val board = params.readBoard()
-            val algorithm = params.readAlgorithm()
+            val algorithm = params.readAlgorithm(baseSearchDepth)
             val gameStatus = params.readGameStatus()
             val moveSquare = params["square"]?.toIntOrNull() ?: throw MissingFieldException("square")
             val playerPlaysAsBlack = gameStatus.blackToMove()
@@ -105,7 +107,7 @@ fun Application.configureRouting() {
         post("/api/resume-game") {
             val params = call.receiveParameters()
             val board = params.readBoard()
-            val algorithm = params.readAlgorithm()
+            val algorithm = params.readAlgorithm(baseSearchDepth)
             val gameStatus = params.readGameStatus()
             val playerColor = params["playerColor"] ?: throw MissingFieldException("playerColor")
             val playerPlaysAsBlack = when (playerColor) {
@@ -130,7 +132,7 @@ fun Application.configureRouting() {
         post("/api/computer/move") {
             val params = call.receiveParameters()
             val board = params.readBoard()
-            val algorithm = params.readAlgorithm()
+            val algorithm = params.readAlgorithm(baseSearchDepth)
             val gameStatus = params.readGameStatus()
             val playerPlaysAsBlack = gameStatus.whiteToMove()
 
@@ -222,13 +224,13 @@ private fun Parameters.readGameStatus(): GameStatus {
     return GameStatus.valueOf(status)
 }
 
-private fun Parameters.readAlgorithm(): MoveSelectionAlgorithm {
-    val algorithm = this["algorithm"] ?: NegamaxSearch().name
+private fun Parameters.readAlgorithm(baseSearchDepth: Int): MoveSelectionAlgorithm {
+    val algorithm = this["algorithm"] ?: NegamaxSearch.NAME
     return when (algorithm) {
-        Random().name -> Random()
-        Greedy().name -> Greedy()
-        NegamaxWithAlphaBetaSearch().name -> NegamaxWithAlphaBetaSearch()
-        else -> NegamaxSearch()
+        Random.NAME -> Random()
+        Greedy.NAME -> Greedy()
+        NegamaxWithAlphaBetaSearch.NAME -> NegamaxWithAlphaBetaSearch(baseSearchDepth)
+        else -> NegamaxSearch(baseSearchDepth)
     }
 }
 
