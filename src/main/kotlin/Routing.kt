@@ -39,7 +39,8 @@ fun Application.configureRouting() {
 
     routing {
         get("/") {
-            call.respondText(renderGamePage(), ContentType.Text.Html, HttpStatusCode.OK)
+            val prefix = call.request.headers["X-Forwarded-Prefix"]?.trimEnd('/') ?: ""
+            call.respondText(renderGamePage(prefix), ContentType.Text.Html, HttpStatusCode.OK)
         }
 
         get("/api/new-game-modal") {
