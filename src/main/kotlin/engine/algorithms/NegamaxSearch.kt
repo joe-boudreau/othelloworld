@@ -51,7 +51,7 @@ class NegamaxSearch(private val initDepth: Int): MoveSelectionAlgorithm {
         val blackToMove = gameStatus.blackToMove()
         val color = if (blackToMove) 1 else -1
 
-        if (depth == 0 || board.remainingMoves == 0) {
+        if (depth == 0 || board.remainingMoves == 0) { // game over, not valid moves
             return -1 to color * evaluateBoard(board)
         }
 

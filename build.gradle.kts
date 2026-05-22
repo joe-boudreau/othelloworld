@@ -19,6 +19,9 @@ dependencies {
     implementation(ktorLibs.server.netty)
     implementation(ktorLibs.server.htmlBuilder)
     implementation(ktorLibs.server.statusPages)
+    implementation(ktorLibs.server.htmx)
+    implementation(ktorLibs.server.contentNegotiation)
+    implementation(ktorLibs.serialization.kotlinx.json)
     implementation(libs.logback.classic)
 
     testImplementation(kotlin("test"))

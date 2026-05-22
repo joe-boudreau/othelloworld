@@ -12,29 +12,39 @@ import com.othelloworld.engine.algorithms.Random
 import com.othelloworld.engine.exceptions.InvalidMoveException
 import io.ktor.http.*
 import io.ktor.server.application.*
+import io.ktor.server.htmx.hx
+import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.plugins.statuspages.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import io.ktor.utils.io.ExperimentalKtorApi
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.MissingFieldException
+import kotlinx.serialization.json.Json
 
+@OptIn(ExperimentalKtorApi::class, ExperimentalSerializationApi::class)
 fun Application.configureRouting() {
     val baseSearchDepth = environment.config.property("app.engine.baseSearchDepth").getString().toInt()
 
     install(StatusPages) {
         exception<InvalidMoveException> { call, cause ->
-            call.respondText(
-                renderErrorFragment(cause.message ?: "Invalid move"),
-                ContentType.Text.Html,
-                HttpStatusCode.BadRequest,
-            )
+            call.respondError(cause.message ?: "Invalid move")
         }
         exception<MissingFieldException> { call, cause ->
-            call.respondText(
-                renderErrorFragment(cause.message ?: "Missing field"),
-                ContentType.Text.Html,
-                HttpStatusCode.BadRequest,
-            )
+            call.respondError(cause.message ?: "Missing field")
         }
+        exception<com.othelloworld.MissingFieldException> { call, cause ->
+            call.respondError(cause.message ?: "Missing field")
+        }
+    }
+
+    install(ContentNegotiation) {
+        json(Json {
+            prettyPrint = true
+            isLenient = true
+        })
     }
 
     routing {
@@ -43,115 +53,167 @@ fun Application.configureRouting() {
             call.respondText(renderGamePage(prefix), ContentType.Text.Html, HttpStatusCode.OK)
         }
 
-        get("/api/new-game-modal") {
-            call.respondText(renderColorPickerFragment(), ContentType.Text.Html, HttpStatusCode.OK)
+        hx {
+            get("/api/new-game-modal") {
+                call.respondText(renderColorPickerFragment(), ContentType.Text.Html, HttpStatusCode.OK)
+            }
+
+            post("/api/resume-game") {
+                val params = call.receiveParameters()
+                val board = params.readBoard()
+                val algorithm = params.readAlgorithm(baseSearchDepth)
+                val gameStatus = params.readGameStatus()
+                val playerColor = params["playerColor"] ?: throw MissingFieldException("playerColor")
+                val playerPlaysAsBlack = when (playerColor) {
+                    "B" -> true
+                    "W" -> false
+                    else -> throw MissingFieldException("playerColor (must be B or W)")
+                }
+                val playerPlaysNext = (playerPlaysAsBlack && gameStatus.blackToMove()) ||
+                        (!playerPlaysAsBlack && gameStatus.whiteToMove())
+
+                val engine = Engine(algorithm)
+                call.respondBoard(
+                    board = board,
+                    status = gameStatus,
+                    algorithm = algorithm.name,
+                    validMoves = engine.getValidMoves(board, gameStatus),
+                    playerPlaysNext = playerPlaysNext,
+                    playerJustPlayed = null,
+                )
+            }
+
+            post("/api/new-game") {
+                val params = call.receiveParameters()
+                val rawColor = params["color"] ?: throw MissingFieldException("color")
+                val algorithm = params.readAlgorithm(baseSearchDepth)
+                val playerPlaysAsBlack = when (rawColor) {
+                    "B" -> true
+                    "W" -> false
+                    "R" -> kotlin.random.Random.nextBoolean()
+                    else -> throw MissingFieldException("color (must be B, W, or R)")
+                }
+
+                val engine = Engine(algorithm)
+                val initialBoardState = STARTING_STATE
+                val initialGameStatus = params.readGameStatus()
+
+                // Black always moves first in Othello. If the human chose white, the computer plays
+                // black first — chain into /api/computer/move and render the board non-interactive.
+                val playerPlaysNext = playerPlaysAsBlack
+                if (!playerPlaysNext) {
+                    call.response.headers.append("HX-Trigger-After-Settle", "computerMove")
+                }
+
+                call.respondBoard(
+                    board = initialBoardState,
+                    status = initialGameStatus,
+                    algorithm = algorithm.name,
+                    validMoves = engine.getValidMoves(initialBoardState, initialGameStatus),
+                    playerPlaysNext = playerPlaysNext,
+                    playerJustPlayed = null, // game just started — no one has played yet
+                )
+            }
+
+            post("/api/player/move") {
+                val params = call.receiveParameters()
+                val board = params.readBoard()
+                val algorithm = params.readAlgorithm(baseSearchDepth)
+                val gameStatus = params.readGameStatus()
+                val moveSquare = params["square"]?.toIntOrNull() ?: throw MissingFieldException("square")
+                val playerPlaysAsBlack = gameStatus.blackToMove()
+
+                val engine = Engine(algorithm)
+
+                val (newBoard, newStatus) = engine.makePlayerMove(board, gameStatus, moveSquare)
+
+                val playerPlaysNext = playerPlaysAsBlack && newStatus.blackToMove() || !playerPlaysAsBlack && newStatus.whiteToMove()
+
+                call.respondBoard(
+                    board = newBoard,
+                    status = newStatus,
+                    algorithm = algorithm.name,
+                    validMoves = engine.getValidMoves(newBoard, newStatus),
+                    lastMove = findLastMove(board, newBoard),
+                    flippedSquares = findFlippedSquares(board, newBoard),
+                    playerPlaysNext = playerPlaysNext,
+                    playerJustPlayed = true,
+                )
+            }
+
+            post("/api/computer/move") {
+                val params = call.receiveParameters()
+                val board = params.readBoard()
+                val algorithm = params.readAlgorithm(baseSearchDepth)
+                val gameStatus = params.readGameStatus()
+                val playerPlaysAsBlack = gameStatus.whiteToMove()
+
+                val engine = Engine(algorithm)
+                val (newBoard, newStatus) = engine.makeEngineMove(board, gameStatus)
+
+                val playerPlaysNext = playerPlaysAsBlack && newStatus.blackToMove() || !playerPlaysAsBlack && newStatus.whiteToMove()
+
+                call.respondBoard(
+                    board = newBoard,
+                    status = newStatus,
+                    algorithm = algorithm.name,
+                    validMoves = engine.getValidMoves(newBoard, newStatus),
+                    lastMove = findLastMove(board, newBoard),
+                    flippedSquares = findFlippedSquares(board, newBoard),
+                    playerPlaysNext = playerPlaysNext,
+                    playerJustPlayed = false,
+                )
+            }
         }
 
+        // Stateless JSON REST API. Clients hold all game state (board bitboards,
+        // status, algorithm) and pass it in on each request. These routes share
+        // paths with the HTMX endpoints above, but the `hx { }` block only matches
+        // requests with the HX-Request header, so non-HTMX requests fall through here.
         post("/api/new-game") {
-            val params = call.receiveParameters()
-            val rawColor = params["color"] ?: throw MissingFieldException("color")
-            val algorithm = params.readAlgorithm(baseSearchDepth)
-            val playerPlaysAsBlack = when (rawColor) {
-                "B" -> true
-                "W" -> false
-                "R" -> kotlin.random.Random.nextBoolean()
-                else -> throw MissingFieldException("color (must be B, W, or R)")
-            }
-
-            val engine = Engine(algorithm)
-            val initialBoardState = STARTING_STATE
-            val initialGameStatus = params.readGameStatus()
-
-            // Black always moves first in Othello. If the human chose white, the computer plays
-            // black first — chain into /api/computer/move and render the board non-interactive.
-            val playerPlaysNext = playerPlaysAsBlack
-            if (!playerPlaysNext) {
-                call.response.headers.append("HX-Trigger-After-Settle", "computerMove")
-            }
-
-            call.respondBoard(
-                board = initialBoardState,
-                status = initialGameStatus,
-                algorithm = algorithm.name,
-                validMoves = engine.getValidMoves(initialBoardState, initialGameStatus),
-                playerPlaysNext = playerPlaysNext,
-                playerJustPlayed = null, // game just started — no one has played yet
-            )
+            val engine = Engine(NegamaxSearch(baseSearchDepth))
+            call.respond(GameStateResponse.from(
+                board = STARTING_STATE,
+                status = GameStatus.BLACK_TO_MOVE,
+                algorithm = NegamaxSearch.NAME,
+                validMoves = engine.getValidMoves(STARTING_STATE, GameStatus.BLACK_TO_MOVE),
+            ))
         }
 
         post("/api/player/move") {
-            val params = call.receiveParameters()
-            val board = params.readBoard()
-            val algorithm = params.readAlgorithm(baseSearchDepth)
-            val gameStatus = params.readGameStatus()
-            val moveSquare = params["square"]?.toIntOrNull() ?: throw MissingFieldException("square")
-            val playerPlaysAsBlack = gameStatus.blackToMove()
-
+            val req = call.receive<PlayerMoveRequest>()
+            val board = BoardState(req.whitePositions, req.blackPositions)
+            val algorithm = resolveAlgorithm(req.algorithm, baseSearchDepth)
             val engine = Engine(algorithm)
 
-            val (newBoard, newStatus) = engine.makePlayerMove(board, gameStatus, moveSquare)
+            val (newBoard, newStatus) = engine.makePlayerMove(board, req.status, req.square)
 
-            val playerPlaysNext = playerPlaysAsBlack && newStatus.blackToMove() || !playerPlaysAsBlack && newStatus.whiteToMove()
-
-            call.respondBoard(
+            call.respond(GameStateResponse.from(
                 board = newBoard,
                 status = newStatus,
                 algorithm = algorithm.name,
                 validMoves = engine.getValidMoves(newBoard, newStatus),
                 lastMove = findLastMove(board, newBoard),
                 flippedSquares = findFlippedSquares(board, newBoard),
-                playerPlaysNext = playerPlaysNext,
-                playerJustPlayed = true,
-            )
-        }
-
-        post("/api/resume-game") {
-            val params = call.receiveParameters()
-            val board = params.readBoard()
-            val algorithm = params.readAlgorithm(baseSearchDepth)
-            val gameStatus = params.readGameStatus()
-            val playerColor = params["playerColor"] ?: throw MissingFieldException("playerColor")
-            val playerPlaysAsBlack = when (playerColor) {
-                "B" -> true
-                "W" -> false
-                else -> throw MissingFieldException("playerColor (must be B or W)")
-            }
-            val playerPlaysNext = (playerPlaysAsBlack && gameStatus.blackToMove()) ||
-                (!playerPlaysAsBlack && gameStatus.whiteToMove())
-
-            val engine = Engine(algorithm)
-            call.respondBoard(
-                board = board,
-                status = gameStatus,
-                algorithm = algorithm.name,
-                validMoves = engine.getValidMoves(board, gameStatus),
-                playerPlaysNext = playerPlaysNext,
-                playerJustPlayed = null,
-            )
+            ))
         }
 
         post("/api/computer/move") {
-            val params = call.receiveParameters()
-            val board = params.readBoard()
-            val algorithm = params.readAlgorithm(baseSearchDepth)
-            val gameStatus = params.readGameStatus()
-            val playerPlaysAsBlack = gameStatus.whiteToMove()
-
+            val req = call.receive<ComputerMoveRequest>()
+            val board = BoardState(req.whitePositions, req.blackPositions)
+            val algorithm = resolveAlgorithm(req.algorithm, baseSearchDepth)
             val engine = Engine(algorithm)
-            val (newBoard, newStatus) = engine.makeEngineMove(board, gameStatus)
 
-            val playerPlaysNext = playerPlaysAsBlack && newStatus.blackToMove() || !playerPlaysAsBlack && newStatus.whiteToMove()
+            val (newBoard, newStatus) = engine.makeEngineMove(board, req.status)
 
-            call.respondBoard(
+            call.respond(GameStateResponse.from(
                 board = newBoard,
                 status = newStatus,
                 algorithm = algorithm.name,
                 validMoves = engine.getValidMoves(newBoard, newStatus),
                 lastMove = findLastMove(board, newBoard),
                 flippedSquares = findFlippedSquares(board, newBoard),
-                playerPlaysNext = playerPlaysNext,
-                playerJustPlayed = false,
-            )
+            ))
         }
     }
 }
@@ -225,14 +287,25 @@ private fun Parameters.readGameStatus(): GameStatus {
     return GameStatus.valueOf(status)
 }
 
-private fun Parameters.readAlgorithm(baseSearchDepth: Int): MoveSelectionAlgorithm {
-    val algorithm = this["algorithm"] ?: NegamaxSearch.NAME
-    return when (algorithm) {
-        Random.NAME -> Random()
-        Greedy.NAME -> Greedy()
-        NegamaxWithAlphaBetaSearch.NAME -> NegamaxWithAlphaBetaSearch(baseSearchDepth)
-        else -> NegamaxSearch(baseSearchDepth)
-    }
-}
+private fun Parameters.readAlgorithm(baseSearchDepth: Int): MoveSelectionAlgorithm =
+    resolveAlgorithm(this["algorithm"], baseSearchDepth)
 
 class MissingFieldException(field: String) : Exception("Missing or invalid field: $field")
+
+private fun resolveAlgorithm(name: String?, baseSearchDepth: Int): MoveSelectionAlgorithm = when (name) {
+    null, NegamaxSearch.NAME -> NegamaxSearch(baseSearchDepth)
+    Random.NAME -> Random()
+    Greedy.NAME -> Greedy()
+    NegamaxWithAlphaBetaSearch.NAME -> NegamaxWithAlphaBetaSearch(baseSearchDepth)
+    else -> throw MissingFieldException("algorithm (unknown: $name)")
+}
+
+// Errors thrown from handlers respond as HTML for HTMX requests (so the UI can
+// swap the fragment into an error slot) and as JSON otherwise (for the REST API).
+private suspend fun ApplicationCall.respondError(message: String) {
+    if (request.headers["HX-Request"] != null) {
+        respondText(renderErrorFragment(message), ContentType.Text.Html, HttpStatusCode.BadRequest)
+    } else {
+        respond(HttpStatusCode.BadRequest, ErrorResponse(message))
+    }
+}
