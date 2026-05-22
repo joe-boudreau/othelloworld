@@ -1,6 +1,8 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(ktorLibs.plugins.ktor)
+    kotlin("plugin.serialization") version "2.2.20"
+
 }
 
 group = "com.othelloworld"

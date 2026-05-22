@@ -65,7 +65,7 @@ fun renderGamePage(pathPrefix: String = ""): String = createHTML().html {
                 +"""
                 * { box-sizing: border-box; }
                 body { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; background: #f2f2ef; color: #000; padding: 2rem; margin: 0; width: max-content; }
-                h1 { margin: 0 0 1.5rem; font-size: 2rem; font-weight: 700; letter-spacing: -0.02em; text-transform: uppercase; border-bottom: 3px solid #000; padding-bottom: 0.5rem; }
+                h1 { margin: 0 0 1.5rem; font-size: 2rem; font-weight: 700; letter-spacing: -0.02em; text-transform: uppercase; border-bottom: 3px solid #000; padding-bottom: 0.5rem; display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
                 #board-container { display: block; width: 454px; }
                 .board { display: grid; grid-template-columns: repeat(8, 56px); grid-template-rows: repeat(8, 56px); gap: 0; background: #000; padding: 0; border: 3px solid #000; perspective: 800px; }
                 .square { background: #2e7d32; display: flex; align-items: center; justify-content: center; padding: 0; border: 1px solid #000; cursor: default; }
@@ -142,12 +142,20 @@ fun renderGamePage(pathPrefix: String = ""): String = createHTML().html {
                 .pass-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 1000; animation: pass-fade 3s ease-in-out forwards; }
                 .pass-modal-content { background: #f2f2ef; border: 3px solid #000; padding: 1.5rem 2rem; border-radius: 0; font-size: 1rem; font-weight: 700; text-transform: uppercase; text-align: center; max-width: 400px; color: #000; }
                 @keyframes pass-fade { 0% { opacity: 0 } 10% { opacity: 1 } 85% { opacity: 1 } 100% { opacity: 0 } }
+
+                .how-link { font-size: 0.75rem; font-weight: 400; text-decoration: none; color: #000; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.7; }
+                .how-link:hover { opacity: 1; }
                 """
             }
         }
     }
     body {
-        h1 { +"Othello World" }
+        h1 {
+            +"Othello World"
+            a(href = "https://flowtwo.io/post/othello-world", classes = "how-link") {
+                +"How?"
+            }
+        }
         div {
             id = "board-container"
             // Initial #board content is the color picker. Choosing a color swaps in the
@@ -161,6 +169,9 @@ fun renderGamePage(pathPrefix: String = ""): String = createHTML().html {
                 attributes["hx-swap"] = "outerHTML"
                 +"New Game"
             }
+        }
+        a(href = "https://flowtwo.io/post/othello-world", classes = "how-link") {
+            +"How?"
         }
     }
 }
