@@ -53,7 +53,7 @@ fun Application.configureRouting() {
             call.respondText(renderGamePage(prefix), ContentType.Text.Html, HttpStatusCode.OK)
         }
 
-        hx {
+        route("/hx") {
             get("/api/new-game-modal") {
                 call.respondText(renderColorPickerFragment(), ContentType.Text.Html, HttpStatusCode.OK)
             }
@@ -99,7 +99,7 @@ fun Application.configureRouting() {
                 val initialGameStatus = params.readGameStatus()
 
                 // Black always moves first in Othello. If the human chose white, the computer plays
-                // black first — chain into /api/computer/move and render the board non-interactive.
+                // black first — chain into /hx/api/computer/move and render the board non-interactive.
                 val playerPlaysNext = playerPlaysAsBlack
                 if (!playerPlaysNext) {
                     call.response.headers.append("HX-Trigger-After-Settle", "computerMove")

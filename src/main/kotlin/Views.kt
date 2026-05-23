@@ -8,6 +8,7 @@ import kotlinx.html.stream.createHTML
 fun renderGamePage(pathPrefix: String = ""): String = createHTML().html {
     head {
         title("Othello World")
+        meta(name = "viewport", content = "width=device-width, initial-scale=1")
         // <base href> makes every relative URL on the page (including HTMX requests)
         // resolve against the proxy prefix. When the header is absent, base="/" is a no-op.
         base { href = "$pathPrefix/" }
@@ -52,7 +53,7 @@ fun renderGamePage(pathPrefix: String = ""): String = createHTML().html {
                     let s;
                     try { s = JSON.parse(raw); } catch(e) { localStorage.removeItem(KEY); return; }
                     if (!s || TERMINAL.includes(s.status)) { localStorage.removeItem(KEY); return; }
-                    htmx.ajax('POST', 'api/resume-game', {
+                    htmx.ajax('POST', 'hx/api/resume-game', {
                       target: '#board', swap: 'outerHTML', values: s
                     });
                   });
@@ -145,6 +146,16 @@ fun renderGamePage(pathPrefix: String = ""): String = createHTML().html {
 
                 .how-link { font-size: 0.75rem; font-weight: 400; text-decoration: none; color: #000; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.7; }
                 .how-link:hover { opacity: 1; }
+
+                @media (max-width: 520px) {
+                    body { padding: 0.75rem; width: 100%; }
+                    h1 { font-size: 1.5rem; margin-bottom: 1rem; }
+                    #board-container { width: 100%; }
+                    .board { grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr); width: 100%; aspect-ratio: 1; }
+                    .square { width: 100%; height: 100%; }
+                    .disc, .disc-3d { width: 75%; height: 75%; }
+                    .picker { width: 100%; min-height: 0; aspect-ratio: 1; }
+                }
                 """
             }
         }
@@ -164,14 +175,11 @@ fun renderGamePage(pathPrefix: String = ""): String = createHTML().html {
         }
         div("controls") {
             button(classes = "action") {
-                attributes["hx-get"] = "api/new-game-modal"
+                attributes["hx-get"] = "hx/api/new-game-modal"
                 attributes["hx-target"] = "#board"
                 attributes["hx-swap"] = "outerHTML"
                 +"New Game"
             }
-        }
-        a(href = "https://flowtwo.io/post/othello-world", classes = "how-link") {
-            +"How?"
         }
     }
 }
@@ -281,7 +289,7 @@ fun renderBoardFragment(
             else -> 500
         }
         div {
-            attributes["hx-post"] = "api/computer/move"
+            attributes["hx-post"] = "hx/api/computer/move"
             attributes["hx-trigger"] = "computerMove from:body delay:${delayMs}ms"
             attributes["hx-include"] = "[name='whitePos'],[name='blackPos'],[name='algorithm'],[name='status']"
             attributes["hx-target"] = "#board"
@@ -301,7 +309,7 @@ fun renderBoardFragment(
 
                 if (isValid) {
                     button(classes = "square valid") {
-                        attributes["hx-post"] = "api/player/move"
+                        attributes["hx-post"] = "hx/api/player/move"
                         attributes["hx-vals"] = """{"square": $sq}"""
                         attributes["hx-include"] = "[name='whitePos'],[name='blackPos'],[name='algorithm'],[name='status']"
                         attributes["hx-target"] = "#board"
@@ -340,7 +348,7 @@ private fun FlowContent.flippingDisc(toColor: String) {
 
 /**
  * Renders the color picker as a `<div id="board">` fragment so it can be swapped
- * into the same target as the board. Each choice POSTs to /api/new-game with a
+ * into the same target as the board. Each choice POSTs to /hx/api/new-game with a
  * `color` parameter (B, W, or R for random).
  */
 fun renderColorPickerFragment(): String = createHTML().div {
@@ -354,7 +362,7 @@ fun renderColorPickerFragment(): String = createHTML().div {
                 Triple("R", "Random", "Coin flip"),
             ).forEach { (code, colorLabel, sub) ->
                 button {
-                    attributes["hx-post"] = "api/new-game"
+                    attributes["hx-post"] = "hx/api/new-game"
                     attributes["hx-vals"] = """{"color": "$code", "status": "BLACK_TO_MOVE"}"""
                     attributes["hx-include"] = "[name='algorithm']"
                     attributes["hx-target"] = "#board"
