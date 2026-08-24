@@ -9,6 +9,7 @@ import com.othelloworld.engine.algorithms.MoveSelectionAlgorithm
 import com.othelloworld.engine.algorithms.NegamaxSearch
 import com.othelloworld.engine.algorithms.NegamaxWithAlphaBetaSearch
 import com.othelloworld.engine.algorithms.Random
+import com.othelloworld.engine.evaluation.v1.V1BoardEvaluator
 import com.othelloworld.engine.exceptions.InvalidMoveException
 import io.ktor.http.*
 import io.ktor.server.application.*
@@ -171,7 +172,8 @@ fun Application.configureRouting() {
         // paths with the HTMX endpoints above, but the `hx { }` block only matches
         // requests with the HX-Request header, so non-HTMX requests fall through here.
         post("/api/new-game") {
-            val engine = Engine(NegamaxSearch(baseSearchDepth))
+            val moveSelectionAlgorithm = resolveAlgorithm(call.request.queryParameters["algorithm"], baseSearchDepth)
+            val engine = Engine(moveSelectionAlgorithm)
             call.respond(GameStateResponse.from(
                 board = STARTING_STATE,
                 status = GameStatus.BLACK_TO_MOVE,
@@ -292,12 +294,15 @@ private fun Parameters.readAlgorithm(baseSearchDepth: Int): MoveSelectionAlgorit
 
 class MissingFieldException(field: String) : Exception("Missing or invalid field: $field")
 
-private fun resolveAlgorithm(name: String?, baseSearchDepth: Int): MoveSelectionAlgorithm = when (name) {
-    null, NegamaxSearch.NAME -> NegamaxSearch(baseSearchDepth)
-    Random.NAME -> Random()
-    Greedy.NAME -> Greedy()
-    NegamaxWithAlphaBetaSearch.NAME -> NegamaxWithAlphaBetaSearch(baseSearchDepth)
-    else -> throw MissingFieldException("algorithm (unknown: $name)")
+private fun resolveAlgorithm(name: String?, baseSearchDepth: Int): MoveSelectionAlgorithm {
+    val boardEvaluator = V1BoardEvaluator()
+    return when (name) {
+        null, NegamaxSearch.NAME -> NegamaxSearch(baseSearchDepth, boardEvaluator)
+        Random.NAME -> Random()
+        Greedy.NAME -> Greedy()
+        NegamaxWithAlphaBetaSearch.NAME -> NegamaxWithAlphaBetaSearch(baseSearchDepth, boardEvaluator)
+        else -> throw MissingFieldException("algorithm (unknown: $name)")
+    }
 }
 
 // Errors thrown from handlers respond as HTML for HTMX requests (so the UI can

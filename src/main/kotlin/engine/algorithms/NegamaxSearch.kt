@@ -3,12 +3,12 @@ package com.othelloworld.engine.algorithms
 import com.othelloworld.engine.BoardState
 import com.othelloworld.engine.GameStatus
 import com.othelloworld.engine.GameStatus.*
-import com.othelloworld.engine.evaluateBoard
+import com.othelloworld.engine.evaluation.BoardEvaluator
 import com.othelloworld.engine.exceptions.InvalidGameStatusException
 import com.othelloworld.engine.getNextPossibleMoves
 import com.othelloworld.engine.updateBoardState
 
-class NegamaxSearch(private val initDepth: Int): MoveSelectionAlgorithm {
+class NegamaxSearch(private val initDepth: Int, private val boardEvaluator: BoardEvaluator): MoveSelectionAlgorithm {
 
     companion object {
         const val NAME = "negamax"
@@ -52,14 +52,14 @@ class NegamaxSearch(private val initDepth: Int): MoveSelectionAlgorithm {
         val color = if (blackToMove) 1 else -1
 
         if (depth == 0 || board.remainingMoves == 0) { // game over, not valid moves
-            return -1 to color * evaluateBoard(board)
+            return -1 to color * boardEvaluator.evaluateBoard(board)
         }
 
         val moves = getNextPossibleMoves(board, blackToMove)
         if (moves.isEmpty()) {
             if (gameStatus.previousPlayerPassed()) {
                 // if the previous player passed, and the current player has no moves either, then the game is over
-                return -1 to color * evaluateBoard(board, gameIsOver = true)
+                return -1 to color * boardEvaluator.evaluateBoard(board, gameIsOver = true)
             }
 
             val newGameStatus = if (blackToMove) WHITE_TO_MOVE_BLACK_PASSING else BLACK_TO_MOVE_WHITE_PASSING
