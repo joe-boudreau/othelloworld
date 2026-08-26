@@ -28,8 +28,8 @@ class NegamaxWithAlphaBetaSearch(baseSearchDepth: Int, private val boardEvaluato
 
         // debug log
         val color = if (gameStatus.blackToMove()) "Black" else "White"
-        println("Moving piece: $color,  Best Move: $bestMove, Score: $bestMoveScore")
-        println("Nodes searched: $nodesSearched")
+        //println("Moving piece: $color,  Best Move: $bestMove, Score: $bestMoveScore")
+        //println("Nodes searched: $nodesSearched")
 
         return updateBoardState(board, gameStatus.blackToMove(), bestMove)
     }
