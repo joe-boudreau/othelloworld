@@ -29,3 +29,9 @@ dependencies {
     testImplementation(kotlin("test"))
     testImplementation(ktorLibs.server.testHost)
 }
+
+tasks.register<BenchmarkTask>("benchmark") {
+    group = "application"
+    description = "Runs an Othello benchmark."
+    runtimeClasspath.from(sourceSets["main"].runtimeClasspath)
+}

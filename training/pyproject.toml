@@ -1,0 +1,17 @@
+[project]
+name = "training"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "flow", email = "joe.boudreau@proton.me" }
+]
+requires-python = ">=3.14"
+dependencies = []
+
+[project.scripts]
+training = "training:main"
+
+[build-system]
+requires = ["uv_build>=0.12.6,<0.13.0"]
+build-backend = "uv_build"

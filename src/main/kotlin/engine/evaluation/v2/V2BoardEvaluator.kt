@@ -4,12 +4,18 @@ import com.othelloworld.engine.BoardState
 import com.othelloworld.engine.evaluation.BoardEvaluator
 import com.othelloworld.engine.evaluation.endProximity
 import com.othelloworld.engine.evaluation.pieceDiffScore
+import kotlin.io.path.Path
+import kotlin.io.path.readText
 import com.othelloworld.engine.evaluation.simplePieceScore
+import kotlinx.serialization.json.Json
 
-class V2BoardEvaluator: BoardEvaluator {
+class V2BoardEvaluator(weightsFilePath: String): BoardEvaluator {
 
-    init {
-        Weights.load("weights/weights_v1.json")
+    // "early"/"mid"/"late" -> weights
+    private val positionalWeightsByPhase: Map<String, DoubleArray> = run {
+        val json = Path(weightsFilePath).readText()
+        val raw: Map<String, List<Double>> = Json.decodeFromString(json)
+        raw.mapValues { it.value.toDoubleArray() }
     }
 
     override fun evaluateBoard(board: BoardState, gameIsOver: Boolean?): Double {
@@ -29,7 +35,7 @@ class V2BoardEvaluator: BoardEvaluator {
     )
 
     fun positionalScore(boardState: BoardState): Double {
-        val weights = Weights.positional[boardState.phaseBucket()] ?: error("weights not loaded")
+        val weights = positionalWeightsByPhase[boardState.phaseBucket()] ?: error("weights not loaded")
         val features = boardState.toFeatureVector()
         return features.zip(weights.toList()).sumOf { (f, w) -> f * w }
     }

@@ -6,14 +6,15 @@ import com.othelloworld.engine.GameStatus.*
 import com.othelloworld.engine.STARTING_STATE
 import com.othelloworld.engine.algorithms.EpsilonGreedyWrapper
 import com.othelloworld.engine.algorithms.NegamaxWithAlphaBetaSearch
+import com.othelloworld.engine.algorithms.Random
 import com.othelloworld.engine.evaluation.pieceDiffScore
 import java.io.File
 
 fun main() {
-    generateSelfPlayData(1, "data")
+    generateSelfPlayData(100, "weights/weights_latest.json","data")
 }
 
-fun generateSelfPlayData(numGames: Int, outDir: String) {
+fun generateSelfPlayData(numGames: Int, weightsFilePath: String, outDir: String) {
 
     val rows: MutableMap<String, MutableList<FeatureRow>> = mutableMapOf(
         "early" to mutableListOf(),
@@ -21,21 +22,27 @@ fun generateSelfPlayData(numGames: Int, outDir: String) {
         "late" to mutableListOf()
     )
 
+    var whiteWins = 0
+    var blackWins = 0
+    var draws = 0
+
+
     repeat(numGames) {
+        println("Game $it")
         val gameHistory = mutableListOf<FeatureRow>()
 
-        val boardEvaluator = V2BoardEvaluator()
+        val boardEvaluator = V2BoardEvaluator(weightsFilePath)
 
         // Black
         val player1Engine = Engine(
             EpsilonGreedyWrapper(
-                NegamaxWithAlphaBetaSearch(baseSearchDepth = 5, boardEvaluator)
+                NegamaxWithAlphaBetaSearch(baseSearchDepth = 3, boardEvaluator)
             )
         )
         // White
         val player2Engine = Engine(
             EpsilonGreedyWrapper(
-                NegamaxWithAlphaBetaSearch(baseSearchDepth = 5, boardEvaluator)
+                NegamaxWithAlphaBetaSearch(baseSearchDepth = 3, boardEvaluator)
             )
         )
 
@@ -53,7 +60,14 @@ fun generateSelfPlayData(numGames: Int, outDir: String) {
 
         val outcome = boardState.pieceDiffScore()  // normalized to [-1, 1]
         gameHistory.forEach { row -> rows[row.phase]!!.add(row.copy(outcome = outcome)) }
+
+        if (outcome > 0) blackWins++
+        else if (outcome < 0) whiteWins++
+        else draws++
+
     }
+
+    println("White wins: $whiteWins, Black wins: $blackWins, Draws: $draws")
 
     rows.forEach { (phase, phaseRows) ->
         File("$outDir/samples_$phase.csv").bufferedWriter().use { writer ->

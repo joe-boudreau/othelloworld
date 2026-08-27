@@ -5,16 +5,6 @@ import com.othelloworld.engine.evaluation.endProximity
 import kotlinx.serialization.json.Json
 import java.io.File
 
-object Weights {
-    var positional: Map<String, DoubleArray> = mapOf() // "early"/"mid"/"late" -> weights
-
-    fun load(path: String) {
-        val json = File(path).readText()
-        val raw: Map<String, List<Double>> = Json.decodeFromString(json)
-        positional = raw.mapValues { it.value.toDoubleArray() }
-    }
-}
-
 data class FeatureRow(
     val features: List<Double>,
     val phase: String,   // "early" | "mid" | "late"

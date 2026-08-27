@@ -1,0 +1,6 @@
+./gradlew benchmark \
+  --p1-weights=weights/weights_latest.json \
+  --p2-weights=weights/weights_v1.json \
+  --p1-search-depth=4 \
+  --p2-search-depth=4
+  --num-games=10
