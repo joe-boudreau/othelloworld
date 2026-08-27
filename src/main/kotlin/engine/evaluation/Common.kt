@@ -14,3 +14,17 @@ fun BoardState.pieceDiffScore(): Double {
     // max diff would be 64
     return (this.blackPieceCount - this.whitePieceCount) / 64.0
 }
+
+fun BoardState.blackPieceRatio(): Double {
+    val blkPieceDouble = this.blackPieceCount.toDouble()
+    val whitePieceDouble = this.whitePieceCount.toDouble()
+    val totalPieces = blkPieceDouble + whitePieceDouble
+    return blkPieceDouble / totalPieces
+}
+
+fun BoardState.whitePieceRatio(): Double {
+    val blkPieceDouble = this.blackPieceCount.toDouble()
+    val whitePieceDouble = this.whitePieceCount.toDouble()
+    val totalPieces = blkPieceDouble + whitePieceDouble
+    return whitePieceDouble / totalPieces
+}
