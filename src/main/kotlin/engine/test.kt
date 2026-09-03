@@ -2,14 +2,14 @@ package com.othelloworld.engine
 
 import java.lang.Thread.sleep
 import com.othelloworld.engine.GameStatus.*
-import com.othelloworld.engine.algorithms.Random
+import com.othelloworld.engine.algorithms.RandomSelection
 
 fun main() {
     var boardState = STARTING_STATE
     var status = BLACK_TO_MOVE
     boardState.print()
 
-    val engine = Engine(Random())
+    val engine = Engine(RandomSelection())
     while(status.isTerminal().not()) {
         sleep(100)
         val (updatedBoardState, updatedStatus) = engine.makeEngineMove(boardState, status)

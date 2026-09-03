@@ -8,14 +8,14 @@ import com.othelloworld.engine.exceptions.InvalidGameStatusException
 import com.othelloworld.engine.getNextPossibleMoves
 import com.othelloworld.engine.updateBoardState
 
-class NegamaxWithAlphaBetaSearch(baseSearchDepth: Int, private val boardEvaluator: BoardEvaluator): MoveSelectionAlgorithm {
+class NegamaxWithAlphaBetaSearch(searchDepth: Int, private val boardEvaluator: BoardEvaluator): MoveSelectionAlgorithm {
 
     companion object {
         const val NAME = "negamax-alpha-beta"
     }
     override val name = NAME
 
-    private val initDepth = baseSearchDepth + 4
+    private val initDepth = searchDepth
     private var nodesSearched = 0
 
     override fun selectMove(board: BoardState, gameStatus: GameStatus): BoardState {

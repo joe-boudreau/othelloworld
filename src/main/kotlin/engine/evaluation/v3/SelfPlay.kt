@@ -1,16 +1,19 @@
-package com.othelloworld.engine.evaluation.v2
+package com.othelloworld.engine.evaluation.v3
 
 import com.othelloworld.engine.Engine
 import com.othelloworld.engine.GameStatus
 import com.othelloworld.engine.GameStatus.*
 import com.othelloworld.engine.STARTING_STATE
-import com.othelloworld.engine.algorithms.EpsilonGreedyWrapper
+import com.othelloworld.engine.algorithms.DecayingEpsilonGreedyWrapper
 import com.othelloworld.engine.algorithms.NegamaxWithAlphaBetaSearch
 import com.othelloworld.engine.evaluation.pieceDiffScore
+import com.othelloworld.engine.evaluation.v2.FeatureRow
+import com.othelloworld.engine.evaluation.v2.phaseBucket
+import com.othelloworld.engine.evaluation.v2.toFeatureVector
 import java.io.File
 
 fun main() {
-    generateSelfPlayData(500, "weights/weights_latest.json","data")
+    generateSelfPlayData(1000, "weights/v3_evaluator/weights_v1.json","data/v3_evaluator")
 }
 
 fun generateSelfPlayData(numGames: Int, weightsFilePath: String, outDir: String) {
@@ -30,18 +33,33 @@ fun generateSelfPlayData(numGames: Int, weightsFilePath: String, outDir: String)
         println("Game $it")
         val gameHistory = mutableListOf<FeatureRow>()
 
-        val boardEvaluator = V2BoardEvaluator(weightsFilePath)
+        val boardEvaluator = V3BoardEvaluator(weightsFilePath)
+
+        val randomSeed = 7676L + it * 52133264L
+
+        val initialEpsilon = 0.1
+        val floorEpsilon = 0.05
+        val epsilonDecayFactor = 0.5
+        val searchDepth = 5
 
         // Black
         val player1Engine = Engine(
-            EpsilonGreedyWrapper(
-                NegamaxWithAlphaBetaSearch(searchDepth = 3, boardEvaluator)
+            DecayingEpsilonGreedyWrapper(
+                internalSelectionAlgorithm = NegamaxWithAlphaBetaSearch(searchDepth = searchDepth, boardEvaluator),
+                initialEpsilon = initialEpsilon,
+                floorEpsilon = floorEpsilon,
+                epsilonDecayFactor = epsilonDecayFactor,
+                randomSeed = randomSeed
             )
         )
         // White
         val player2Engine = Engine(
-            EpsilonGreedyWrapper(
-                NegamaxWithAlphaBetaSearch(searchDepth = 3, boardEvaluator)
+            DecayingEpsilonGreedyWrapper(
+                internalSelectionAlgorithm = NegamaxWithAlphaBetaSearch(searchDepth = searchDepth, boardEvaluator),
+                initialEpsilon = initialEpsilon,
+                floorEpsilon = floorEpsilon,
+                epsilonDecayFactor = epsilonDecayFactor,
+                randomSeed = randomSeed + 1
             )
         )
 

@@ -15,7 +15,7 @@ def train_phase(phase: str, data_dir: str, alpha: float):
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-    model = Ridge(alpha=alpha)
+    model = Ridge(alpha=alpha, fit_intercept=False)
     model.fit(X_train, y_train)
 
     train_r2 = model.score(X_train, y_train)
@@ -30,10 +30,10 @@ def train_phase(phase: str, data_dir: str, alpha: float):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data-dir", default="../data/training_run_1")
-    parser.add_argument("--out", default="../weights/weights_latest.json")
+    parser.add_argument("--data-dir", default="../data/training_run_2")
+    parser.add_argument("--out", default="../weights/weights_v3.json")
     parser.add_argument("--alpha", type=float, default=1.0)
-    parser.add_argument("--run-name", default="training-run")
+    parser.add_argument("--run-name", default="training-run-2-alpha-1-fix-intercept")
     args = parser.parse_args()
 
     mlflow.set_experiment("othello-eval-weights")

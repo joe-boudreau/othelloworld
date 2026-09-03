@@ -6,22 +6,27 @@ import com.othelloworld.engine.Engine
 import com.othelloworld.engine.GameStatus
 import com.othelloworld.engine.GameStatus.*
 import com.othelloworld.engine.STARTING_STATE
+import com.othelloworld.engine.algorithms.DecayingEpsilonGreedyWrapper
 import com.othelloworld.engine.algorithms.EpsilonGreedyWrapper
 import com.othelloworld.engine.algorithms.NegamaxWithAlphaBetaSearch
 import com.othelloworld.engine.evaluation.blackPieceRatio
 import com.othelloworld.engine.evaluation.pieceDiffScore
+import com.othelloworld.engine.evaluation.v1.V1BoardEvaluator
+import com.othelloworld.engine.evaluation.v3.V3BoardEvaluator
 import com.othelloworld.engine.evaluation.whitePieceRatio
 
 fun main(args: Array<String>) {
-    require(args.size == 5) {
-        "Expected: <player 1 weights path> <player 2 weights path> <p1 search depth> <p2 search depth> <num games>"
+    require(args.size == 7) {
+        "Expected: <player 1 weights path> <player 2 weights path> <p1 search depth> <p2 search depth> <p1 evaluator version> <p2 evaluator version> <num games>"
     }
 
     val p1WeightsPath = args[0]
     val p2WeightsPath = args[1]
     val p1SearchDepth = args[2].toInt()
     val p2SearchDepth = args[3].toInt()
-    val numGames = args[4].toInt()
+    val p1EvaluatorVersion = args[4]
+    val p2EvaluatorVersion = args[5]
+    val numGames = args[6].toInt()
 
     println("Benchmark configuration:")
     println("  player 1 weights: $p1WeightsPath")
@@ -38,22 +43,44 @@ fun main(args: Array<String>) {
     var sumP1TotalMovesForWins = 0.0
     var sumP2TotalMovesForWins = 0.0
 
+    val p1Evaluator = when (p1EvaluatorVersion) {
+        "v1" -> V1BoardEvaluator()
+        "v2" -> V2BoardEvaluator(p1WeightsPath)
+        "v3" -> V3BoardEvaluator(p1WeightsPath)
+        else -> throw IllegalArgumentException("Unknown evaluator version: $p1EvaluatorVersion")
+    }
 
+    val p2Evaluator = when (p2EvaluatorVersion) {
+        "v1" -> V1BoardEvaluator()
+        "v2" -> V2BoardEvaluator(p2WeightsPath)
+        "v3" -> V3BoardEvaluator(p2WeightsPath)
+        else -> throw IllegalArgumentException("Unknown evaluator version: $p2EvaluatorVersion")
+    }
 
     repeat(numGames) {
         val p1IsBlack = it % 2 == 0
 
         println("Game $it - Player 1: ${if (p1IsBlack) "Black" else "White"}, Player 2: ${if (!p1IsBlack) "Black" else "White"}")
 
-        val player1Engine = Engine(EpsilonGreedyWrapper(NegamaxWithAlphaBetaSearch(
-            p1SearchDepth,
-            V2BoardEvaluator(p1WeightsPath)), 0.05
+        val randomSeed = 987654321 + it * 123456789L
+
+        val player1Engine = Engine(
+            DecayingEpsilonGreedyWrapper(
+                internalSelectionAlgorithm = NegamaxWithAlphaBetaSearch(p1SearchDepth,p1Evaluator),
+                initialEpsilon = 0.05,
+                floorEpsilon = 0.0,
+                epsilonDecayFactor = 0.65,
+                randomSeed = randomSeed
         ))
 
-        val player2Engine = Engine(EpsilonGreedyWrapper(NegamaxWithAlphaBetaSearch(
-            p2SearchDepth,
-            V2BoardEvaluator(p2WeightsPath)), 0.05
-        ))
+        val player2Engine = Engine(
+            DecayingEpsilonGreedyWrapper(
+                internalSelectionAlgorithm = NegamaxWithAlphaBetaSearch(p2SearchDepth,p2Evaluator),
+                initialEpsilon = 0.05,
+                floorEpsilon = 0.0,
+                epsilonDecayFactor = 0.65,
+                randomSeed = randomSeed + 1
+            ))
 
         fun getMovingEngine(gameStatus : GameStatus) = if (gameStatus.blackToMove() && p1IsBlack || gameStatus.whiteToMove() && !p1IsBlack) player1Engine else player2Engine
 

@@ -12,6 +12,8 @@ abstract class BenchmarkTask : DefaultTask() {
     private var p2WeightsValue = ""
     private var p1SearchDepthValue = 4
     private var p2SearchDepthValue = 4
+    private var p1EvaluatorVersionValue = "v2"
+    private var p2EvaluatorVersionValue = "v2"
     private var numGamesValue = 10
 
 
@@ -36,6 +38,14 @@ abstract class BenchmarkTask : DefaultTask() {
     @get:Input
     val p2SearchDepth: Int
         get() = p2SearchDepthValue
+
+    @get:Input
+    val p1EvaluatorVersion: String
+        get() = p1EvaluatorVersionValue
+
+    @get:Input
+    val p2EvaluatorVersion: String
+        get() = p2EvaluatorVersionValue
 
     @get:Input
     val numGames: Int
@@ -63,6 +73,16 @@ abstract class BenchmarkTask : DefaultTask() {
             ?: throw IllegalArgumentException("--p2-search-depth must be an integer")
     }
 
+    @Option(option = "p1-evaluator-version", description = "P1 evaluator version")
+    fun setP1EvaluatorVersion(value: String) {
+        p1EvaluatorVersionValue = value
+    }
+
+    @Option(option = "p2-evaluator-version", description = "P2 evaluator version")
+    fun setP2EvaluatorVersion(value: String) {
+        p2EvaluatorVersionValue = value
+    }
+
     @Option(option = "num-games", description = "Number of games to run")
     fun setNumGames(value: String) {
         numGamesValue = value.toIntOrNull()
@@ -77,7 +97,15 @@ abstract class BenchmarkTask : DefaultTask() {
         execOperations.javaexec {
             classpath = runtimeClasspath
             mainClass.set("com.othelloworld.benchmark.BenchmarkMainKt")
-            args(p1Weights, p2Weights, p1SearchDepthValue.toString(), p2SearchDepthValue.toString(), numGamesValue.toString())
+            args(
+                p1Weights,
+                p2Weights,
+                p1SearchDepthValue.toString(),
+                p2SearchDepthValue.toString(),
+                p1EvaluatorVersion,
+                p2EvaluatorVersion,
+                numGamesValue.toString()
+            )
         }
     }
 }

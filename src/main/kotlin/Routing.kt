@@ -8,12 +8,11 @@ import com.othelloworld.engine.algorithms.Greedy
 import com.othelloworld.engine.algorithms.MoveSelectionAlgorithm
 import com.othelloworld.engine.algorithms.NegamaxSearch
 import com.othelloworld.engine.algorithms.NegamaxWithAlphaBetaSearch
-import com.othelloworld.engine.algorithms.Random
+import com.othelloworld.engine.algorithms.RandomSelection
 import com.othelloworld.engine.evaluation.v1.V1BoardEvaluator
 import com.othelloworld.engine.exceptions.InvalidMoveException
 import io.ktor.http.*
 import io.ktor.server.application.*
-import io.ktor.server.htmx.hx
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.plugins.statuspages.*
@@ -298,9 +297,9 @@ private fun resolveAlgorithm(name: String?, baseSearchDepth: Int): MoveSelection
     val boardEvaluator = V1BoardEvaluator()
     return when (name) {
         null, NegamaxSearch.NAME -> NegamaxSearch(baseSearchDepth, boardEvaluator)
-        Random.NAME -> Random()
+        RandomSelection.NAME -> RandomSelection()
         Greedy.NAME -> Greedy()
-        NegamaxWithAlphaBetaSearch.NAME -> NegamaxWithAlphaBetaSearch(baseSearchDepth, boardEvaluator)
+        NegamaxWithAlphaBetaSearch.NAME -> NegamaxWithAlphaBetaSearch(baseSearchDepth + 4, boardEvaluator)
         else -> throw MissingFieldException("algorithm (unknown: $name)")
     }
 }

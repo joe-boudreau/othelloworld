@@ -5,11 +5,12 @@ import com.othelloworld.engine.GameStatus
 import com.othelloworld.engine.exceptions.InvalidGameStatusException
 import com.othelloworld.engine.getNextPossibleMoves
 import com.othelloworld.engine.updateBoardState
+import kotlin.random.Random
 
 /**
  * Always selects a random move
  */
-class Random: MoveSelectionAlgorithm {
+class RandomSelection(private val randomSource: Random = Random.Default): MoveSelectionAlgorithm {
 
     companion object {
         const val NAME = "random"
@@ -21,7 +22,7 @@ class Random: MoveSelectionAlgorithm {
         if (moves.isEmpty()) {
             throw InvalidGameStatusException(board, gameStatus)
         }
-        val chosen = moves.random()
+        val chosen = moves.random(randomSource)
         return updateBoardState(board, gameStatus.blackToMove(), chosen)
     }
 }

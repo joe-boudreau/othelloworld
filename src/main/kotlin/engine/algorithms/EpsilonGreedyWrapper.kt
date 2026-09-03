@@ -10,7 +10,7 @@ class EpsilonGreedyWrapper(
 
     override val name = "epsGreedy(${internalSelectionAlgorithm.name})"
 
-    private val randomSelection = Random()
+    private val randomSelection = RandomSelection()
 
     override fun selectMove(
         board: BoardState,
