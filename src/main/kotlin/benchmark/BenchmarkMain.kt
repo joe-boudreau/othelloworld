@@ -7,7 +7,6 @@ import com.othelloworld.engine.GameStatus
 import com.othelloworld.engine.GameStatus.*
 import com.othelloworld.engine.STARTING_STATE
 import com.othelloworld.engine.algorithms.DecayingEpsilonGreedyWrapper
-import com.othelloworld.engine.algorithms.EpsilonGreedyWrapper
 import com.othelloworld.engine.algorithms.NegamaxWithAlphaBetaSearch
 import com.othelloworld.engine.evaluation.blackPieceRatio
 import com.othelloworld.engine.evaluation.pieceDiffScore
@@ -60,25 +59,29 @@ fun main(args: Array<String>) {
     repeat(numGames) {
         val p1IsBlack = it % 2 == 0
 
-        println("Game $it - Player 1: ${if (p1IsBlack) "Black" else "White"}, Player 2: ${if (!p1IsBlack) "Black" else "White"}")
+        println("\nGame $it - Player 1: ${if (p1IsBlack) "Black" else "White"}, Player 2: ${if (!p1IsBlack) "Black" else "White"}")
 
-        val randomSeed = 987654321 + it * 123456789L
+        val randomSeed = 987654321 + it * 12345678L
+
+        val initialEpsilon = 0.5
+        val floorEpsilon = 0.0
+        val epsilonDecayFactor = 0.5
 
         val player1Engine = Engine(
             DecayingEpsilonGreedyWrapper(
                 internalSelectionAlgorithm = NegamaxWithAlphaBetaSearch(p1SearchDepth,p1Evaluator),
-                initialEpsilon = 0.05,
-                floorEpsilon = 0.0,
-                epsilonDecayFactor = 0.65,
+                initialEpsilon = initialEpsilon,
+                floorEpsilon = floorEpsilon,
+                epsilonDecayFactor = epsilonDecayFactor,
                 randomSeed = randomSeed
         ))
 
         val player2Engine = Engine(
             DecayingEpsilonGreedyWrapper(
                 internalSelectionAlgorithm = NegamaxWithAlphaBetaSearch(p2SearchDepth,p2Evaluator),
-                initialEpsilon = 0.05,
-                floorEpsilon = 0.0,
-                epsilonDecayFactor = 0.65,
+                initialEpsilon = initialEpsilon,
+                floorEpsilon = floorEpsilon,
+                epsilonDecayFactor = epsilonDecayFactor,
                 randomSeed = randomSeed + 1
             ))
 
@@ -126,7 +129,7 @@ fun main(args: Array<String>) {
     val p1WinPercent = (p1Wins.toDouble() / (p1Wins + p2Wins + draws)) * 100
     val p2WinPercent = (p2Wins.toDouble() / (p1Wins + p2Wins + draws)) * 100
 
-    println("Player 1 wins: $p1Wins, Player 2 wins: $p2Wins, Draws: $draws")
-    println("Player 1 win stats: \navg win percentage: $p1WinPercent%, \npiece ratio: $avgP1PieceRatioPercentForWins%, \navg total moves: $avgP1TotalMovesForWins")
-    println("Player 2 win stats: \navg win percentage: $p2WinPercent%, \npiece ratio: $avgP2PieceRatioPercentForWins%, \navg total moves: $avgP2TotalMovesForWins")
+    println("\n\nOverall stats: \n\tPlayer 1 wins: $p1Wins, Player 2 wins: $p2Wins, Draws: $draws")
+    println("Player 1 win stats: \n\tavg win percentage: $p1WinPercent%, \n\tpiece ratio: $avgP1PieceRatioPercentForWins%, \n\tavg total moves: $avgP1TotalMovesForWins")
+    println("Player 2 win stats: \n\tavg win percentage: $p2WinPercent%, \n\tpiece ratio: $avgP2PieceRatioPercentForWins%, \n\tavg total moves: $avgP2TotalMovesForWins")
 }
