@@ -13,7 +13,7 @@ import com.othelloworld.engine.evaluation.v2.toFeatureVector
 import java.io.File
 
 fun main() {
-    generateSelfPlayData(5000, "weights/v3_evaluator/weights_v1.json","data/v3_evaluator")
+    generateSelfPlayData(5000, "weights/v3_evaluator/weights_v2.json","data/v3_evaluator")
 }
 
 fun generateSelfPlayData(numGames: Int, weightsFilePath: String, outDir: String) {
@@ -37,7 +37,7 @@ fun generateSelfPlayData(numGames: Int, weightsFilePath: String, outDir: String)
 
         val boardEvaluator = V3BoardEvaluator(weightsFilePath)
 
-        val randomSeed = 1234567L + it * 987654321L
+        val randomSeed = 91234567L + it * 987654327L
 
         val initialEpsilon = 0.5
         val floorEpsilon = 0.05

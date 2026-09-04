@@ -31,9 +31,9 @@ def train_phase(phase: str, data_dir: str, alpha: float):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--data-dir", default="../data/v3_evaluator")
-    parser.add_argument("--out", default="../weights/v3_evaluator/weights_v2_candidate.json")
+    parser.add_argument("--out", default="../weights/v3_evaluator/weights_v3_candidate.json")
     parser.add_argument("--alpha", type=float, default=1.0)
-    parser.add_argument("--run-name", default="training-run-v3-eval-alpha-1-weights-v2-candidate")
+    parser.add_argument("--run-name", default="training-run-v3-eval-alpha-1-weights-v3-candidate")
     args = parser.parse_args()
 
     mlflow.set_experiment("othello-eval-weights")

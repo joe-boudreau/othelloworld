@@ -16,3 +16,4 @@ out/
 # OS
 .DS_Store
 Thumbs.db
+/build-push-to-dockerhub.sh
