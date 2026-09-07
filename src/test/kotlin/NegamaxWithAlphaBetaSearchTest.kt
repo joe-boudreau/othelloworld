@@ -2,6 +2,7 @@ package com.othelloworld
 
 import com.othelloworld.engine.BoardState
 import com.othelloworld.engine.GameStatus.BLACK_TO_MOVE
+import com.othelloworld.engine.GameStatus.WHITE_TO_MOVE
 import com.othelloworld.engine.STARTING_STATE
 import com.othelloworld.engine.algorithms.NegamaxWithAlphaBetaSearch
 import com.othelloworld.engine.evaluation.BoardEvaluator
@@ -27,6 +28,30 @@ class NegamaxWithAlphaBetaSearchTest {
         repeat(20) {
             assertEquals(expected, search.selectMove(STARTING_STATE, BLACK_TO_MOVE))
         }
+    }
+
+    @Test
+    fun `zero temperature does not sample an inferior move from a fail-soft tie`() {
+        val board = BoardState(
+            whitePositions = 134217728L,
+            blackPositions = 17695533694976L,
+        )
+        val search = NegamaxWithAlphaBetaSearch(
+            searchDepth = 4,
+            boardEvaluator = object : BoardEvaluator {
+                override fun evaluateBoard(board: BoardState, gameIsOver: Boolean?): Double =
+                    (board.blackPieceCount - board.whitePieceCount).toDouble()
+            },
+            temperature = 0.0,
+            randomSeed = 0L,
+        )
+
+        val bestBoards = setOf(
+            updateBoardState(board, blackToMove = false, move = 29),
+            updateBoardState(board, blackToMove = false, move = 45),
+        )
+
+        assertTrue(search.selectMove(board, WHITE_TO_MOVE) in bestBoards)
     }
 
     @Test

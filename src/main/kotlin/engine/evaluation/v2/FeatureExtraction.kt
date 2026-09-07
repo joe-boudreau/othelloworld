@@ -22,6 +22,8 @@ val SYMMETRY_CLASS = intArrayOf(
     0, 1, 1, 1, 1, 1, 1, 0
 )
 
+fun mapWeightsToSquareWeight(weights: List<Double>): DoubleArray = SYMMETRY_CLASS.map { weights[it] }.toDoubleArray()
+
 val NUM_SYMMETRY_CLASSES = SYMMETRY_CLASS.distinct().size
 
 fun BoardState.toFeatureVector(): List<Double> {

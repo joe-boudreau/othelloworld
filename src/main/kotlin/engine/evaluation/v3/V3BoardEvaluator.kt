@@ -2,22 +2,20 @@ package com.othelloworld.engine.evaluation.v3
 
 import com.othelloworld.engine.BoardState
 import com.othelloworld.engine.evaluation.BoardEvaluator
-import com.othelloworld.engine.evaluation.endProximity
 import com.othelloworld.engine.evaluation.pieceDiffScore
 import kotlin.io.path.Path
 import kotlin.io.path.readText
-import com.othelloworld.engine.evaluation.simplePieceScore
+import com.othelloworld.engine.evaluation.v2.mapWeightsToSquareWeight
 import com.othelloworld.engine.evaluation.v2.phaseBucket
-import com.othelloworld.engine.evaluation.v2.toFeatureVector
 import kotlinx.serialization.json.Json
 
 class V3BoardEvaluator(weightsFilePath: String): BoardEvaluator {
 
-    // "early"/"mid"/"late" -> weights
+    // "early"/"mid"/"late" -> weight of each square (Array of 64 doubles)
     private val positionalWeightsByPhase: Map<String, DoubleArray> = run {
         val json = Path(weightsFilePath).readText()
         val raw: Map<String, List<Double>> = Json.decodeFromString(json)
-        raw.mapValues { it.value.toDoubleArray() }
+        raw.mapValues { mapWeightsToSquareWeight(it.value) }
     }
 
     override fun evaluateBoard(board: BoardState, gameIsOver: Boolean?): Double {
@@ -41,8 +39,17 @@ class V3BoardEvaluator(weightsFilePath: String): BoardEvaluator {
     }
 
     private fun positionalScore(boardState: BoardState): Double {
-        val weights = positionalWeightsByPhase[boardState.phaseBucket()] ?: error("weights not loaded")
-        val features = boardState.toFeatureVector()
-        return features.zip(weights.toList()).sumOf { (f, w) -> f * w }
+        val squareWeights = positionalWeightsByPhase[boardState.phaseBucket()] ?: error("weights not loaded")
+        var score = 0.0
+        for (sq in 0..63) {
+            val mask = 1L shl (63 - sq)
+            val value = when {
+                boardState.blackPositions and mask != 0L -> 1.0
+                boardState.whitePositions and mask != 0L -> -1.0
+                else -> 0.0
+            }
+            score += squareWeights[sq] * value
+        }
+        return score
     }
 }

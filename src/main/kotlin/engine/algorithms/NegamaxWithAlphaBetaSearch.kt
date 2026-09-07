@@ -36,8 +36,8 @@ class NegamaxWithAlphaBetaSearch(
     override fun selectMove(board: BoardState, gameStatus: GameStatus): BoardState {
         nodesSearched = 0
 
-        val (bestMove, _) = if (temperature == 0.0) {
-            getBestMove(board, gameStatus)
+        val bestMove = if (temperature == 0.0) {
+            chooseBestRootMove(board, gameStatus)
         } else {
             chooseRootMoveWithTemperature(board, gameStatus)
         }
@@ -47,6 +47,43 @@ class NegamaxWithAlphaBetaSearch(
         }
 
         return updateBoardState(board, gameStatus.blackToMove(), bestMove)
+    }
+
+    /**
+     * Selects the best root move without interpreting fail-soft bounds as exact
+     * scores. A bound equal to the incumbent cannot replace it; a genuinely
+     * better move must produce a strictly greater score.
+     */
+    private fun chooseBestRootMove(
+        board: BoardState,
+        gameStatus: GameStatus,
+    ): Int {
+        if (searchDepth == 0 || board.remainingMoves == 0) {
+            return -1
+        }
+
+        val blackToMove = gameStatus.blackToMove()
+        val nextStatus = if (blackToMove) WHITE_TO_MOVE else BLACK_TO_MOVE
+        var bestMove = -1
+        var bestScore = Double.NEGATIVE_INFINITY
+
+        for (move in getNextPossibleMoves(board, blackToMove).sortedByDescending(this::moveSorter)) {
+            val updatedBoardState = updateBoardState(board, blackToMove, move)
+            val opponentScore = negamaxScore(
+                board = updatedBoardState,
+                gameStatus = nextStatus,
+                alpha = Double.NEGATIVE_INFINITY,
+                beta = -bestScore,
+                depth = searchDepth - 1,
+            )
+            val currentMoverScore = -opponentScore
+            if (currentMoverScore > bestScore) {
+                bestMove = move
+                bestScore = currentMoverScore
+            }
+        }
+
+        return bestMove
     }
 
     /**
@@ -66,9 +103,9 @@ class NegamaxWithAlphaBetaSearch(
     private fun chooseRootMoveWithTemperature(
         board: BoardState,
         gameStatus: GameStatus,
-    ): Pair<Int, Double> {
+    ): Int {
         if (searchDepth == 0 || board.remainingMoves == 0) {
-            return -1 to Double.NEGATIVE_INFINITY
+            return -1
         }
 
         val blackToMove = gameStatus.blackToMove()
@@ -78,7 +115,7 @@ class NegamaxWithAlphaBetaSearch(
             .sortedByDescending(this::moveSorter)
             .map { move ->
                 val updatedBoardState = updateBoardState(board, blackToMove, move)
-                val (_, opponentScore) = getBestMove(
+                val opponentScore = negamaxScore(
                     board = updatedBoardState,
                     gameStatus = nextStatus,
                     alpha = Double.NEGATIVE_INFINITY,
@@ -91,10 +128,10 @@ class NegamaxWithAlphaBetaSearch(
             }
 
         if (moveScores.isEmpty()) {
-            return -1 to Double.NEGATIVE_INFINITY
+            return -1
         }
         if (moveScores.size == 1) {
-            return moveScores.single()
+            return moveScores.single().first
         }
 
         require(moveScores.all { (_, score) -> score.isFinite() }) {
@@ -142,12 +179,12 @@ class NegamaxWithAlphaBetaSearch(
         for (index in moveScores.indices) {
             cumulativeWeight += weights[index]
             if (sample < cumulativeWeight) {
-                return moveScores[index]
+                return moveScores[index].first
             }
         }
 
         // Protect against the final cumulative sum rounding down by a few ulps.
-        return moveScores.last()
+        return moveScores.last().first
     }
 
     /**
@@ -165,19 +202,19 @@ class NegamaxWithAlphaBetaSearch(
      *             break (* cut-off *)
      *     return value
      */
-    private fun getBestMove(
+    private fun negamaxScore(
         board: BoardState,
         gameStatus: GameStatus,
         alpha: Double = Double.NEGATIVE_INFINITY,
         beta: Double = Double.POSITIVE_INFINITY,
         depth: Int = searchDepth,
-    ): Pair<Int, Double> {
+    ): Double {
         nodesSearched++
         val blackToMove = gameStatus.blackToMove()
         val color = if (blackToMove) 1 else -1
 
         if (depth == 0 || board.remainingMoves == 0) {
-            return -1 to color * boardEvaluator.evaluateBoard(board)
+            return color * boardEvaluator.evaluateBoard(board)
         }
 
         val moves = getNextPossibleMoves(board, blackToMove)
@@ -185,23 +222,23 @@ class NegamaxWithAlphaBetaSearch(
         if (orderedMoves.isEmpty()) {
             if (gameStatus.previousPlayerPassed()) {
                 // if the previous player passed, and the current player has no moves either, then the game is over
-                return -1 to color * boardEvaluator.evaluateBoard(board, gameIsOver = true)
+                return color * boardEvaluator.evaluateBoard(board, gameIsOver = true)
             }
 
             val newGameStatus = if (blackToMove) WHITE_TO_MOVE_BLACK_PASSING else BLACK_TO_MOVE_WHITE_PASSING
-            val (_, score) = getBestMove(board, newGameStatus, -beta, -alpha, depth)
-            return -1 to -1 * score
+            val score = negamaxScore(board, newGameStatus, -beta, -alpha, depth)
+            return -1 * score
         }
 
-        var bestMoveAndScore = -1 to Double.NEGATIVE_INFINITY
+        var bestScore = Double.NEGATIVE_INFINITY
         var newAlpha = alpha
         for (move in orderedMoves) {
             val updatedBoardState = updateBoardState(board, gameStatus.blackToMove(), move)
             val nextStatus = if (blackToMove) WHITE_TO_MOVE else BLACK_TO_MOVE
-            val (_, score) = getBestMove(updatedBoardState, nextStatus, -beta, -newAlpha, depth - 1)
+            val score = negamaxScore(updatedBoardState, nextStatus, -beta, -newAlpha, depth - 1)
             val currentMoverScore = -1 * score // the current player's motive is to minimize the max score the other player can achieve
-            if (currentMoverScore > bestMoveAndScore.second) {
-                bestMoveAndScore = move to currentMoverScore
+            if (currentMoverScore > bestScore) {
+                bestScore = currentMoverScore
             }
 
             newAlpha = maxOf(newAlpha, currentMoverScore)
@@ -210,7 +247,7 @@ class NegamaxWithAlphaBetaSearch(
             }
 
         }
-        return bestMoveAndScore
+        return bestScore
     }
 
 
