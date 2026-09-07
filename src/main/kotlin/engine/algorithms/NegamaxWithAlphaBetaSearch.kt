@@ -50,8 +50,14 @@ class NegamaxWithAlphaBetaSearch(
     }
 
     /**
-     * Scores every root move with a full alpha-beta window, then samples one with
-     * softmax. Deeper search nodes remain deterministic.
+     * Scores every root move, then samples one with softmax. Deeper search nodes
+     * remain deterministic.
+     *
+     * Alpha is shared across root moves so that moves which cannot beat the best
+     * score found so far can be cut off early. Consequently, scores after the
+     * first move can be fail-soft upper bounds rather than exact minimax scores.
+     * That trade-off preserves alpha-beta's performance while remaining suitable
+     * for an exploratory self-play policy.
      *
      * Root scores are standardized within the current position before applying
      * temperature. This makes temperature dimensionless, so multiplying or
@@ -67,6 +73,7 @@ class NegamaxWithAlphaBetaSearch(
 
         val blackToMove = gameStatus.blackToMove()
         val nextStatus = if (blackToMove) WHITE_TO_MOVE else BLACK_TO_MOVE
+        var rootAlpha = Double.NEGATIVE_INFINITY
         val moveScores = getNextPossibleMoves(board, blackToMove)
             .sortedByDescending(this::moveSorter)
             .map { move ->
@@ -75,10 +82,12 @@ class NegamaxWithAlphaBetaSearch(
                     board = updatedBoardState,
                     gameStatus = nextStatus,
                     alpha = Double.NEGATIVE_INFINITY,
-                    beta = Double.POSITIVE_INFINITY,
+                    beta = -rootAlpha,
                     depth = searchDepth - 1,
                 )
-                move to -opponentScore
+                val currentMoverScore = -opponentScore
+                rootAlpha = maxOf(rootAlpha, currentMoverScore)
+                move to currentMoverScore
             }
 
         if (moveScores.isEmpty()) {

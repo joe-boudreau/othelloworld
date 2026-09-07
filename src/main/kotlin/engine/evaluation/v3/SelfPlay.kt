@@ -13,7 +13,7 @@ import com.othelloworld.engine.evaluation.v2.toFeatureVector
 import java.io.File
 
 fun main() {
-    generateSelfPlayData(5000, "weights/v3_evaluator/weights_v2.json","data/v3_evaluator")
+    generateSelfPlayData(10, "weights/v3_evaluator/weights_v3.json","data/v3_evaluator")
 }
 
 fun generateSelfPlayData(numGames: Int, weightsFilePath: String, outDir: String) {
@@ -28,8 +28,8 @@ fun generateSelfPlayData(numGames: Int, weightsFilePath: String, outDir: String)
     var blackWins = 0
     var draws = 0
 
-    val maxSearchDepth = 8
-    fun getSearchDepth(gameNum: Int) = if (gameNum < numGames / 3) maxSearchDepth else if (gameNum < 2 * numGames / 3) maxSearchDepth-1 else maxSearchDepth-2
+//    val maxSearchDepth = 8
+//    fun getSearchDepth(gameNum: Int) = if (gameNum < numGames / 3) maxSearchDepth else if (gameNum < 2 * numGames / 3) maxSearchDepth-1 else maxSearchDepth-2
 
     repeat(numGames) {
         println("Game $it")
@@ -37,13 +37,14 @@ fun generateSelfPlayData(numGames: Int, weightsFilePath: String, outDir: String)
 
         val boardEvaluator = V3BoardEvaluator(weightsFilePath)
 
-        val randomSeed = 91234567L + it * 987654327L
+        val randomSeed = 123456123L + it * 987654327L
 
         val initialEpsilon = 0.75
         val floorEpsilon = 0.0
         val epsilonDecayFactor = 0.75
         val negamaxTemperature = 0.7
-        val searchDepth = getSearchDepth(it)
+        //val searchDepth = getSearchDepth(it)
+        val searchDepth = 8
 
         // Black
         val player1Engine = Engine(
