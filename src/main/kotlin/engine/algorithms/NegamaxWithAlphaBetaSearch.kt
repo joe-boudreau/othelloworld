@@ -7,31 +7,138 @@ import com.othelloworld.engine.evaluation.BoardEvaluator
 import com.othelloworld.engine.exceptions.InvalidGameStatusException
 import com.othelloworld.engine.getNextPossibleMoves
 import com.othelloworld.engine.updateBoardState
+import kotlin.math.abs
+import kotlin.math.exp
+import kotlin.math.sqrt
+import kotlin.random.Random
 
-class NegamaxWithAlphaBetaSearch(searchDepth: Int, private val boardEvaluator: BoardEvaluator): MoveSelectionAlgorithm {
+class NegamaxWithAlphaBetaSearch(
+    private val searchDepth: Int,
+    private val boardEvaluator: BoardEvaluator,
+    private val temperature: Double = 0.0,
+    randomSeed: Long = 123456789L,
+): MoveSelectionAlgorithm {
 
     companion object {
         const val NAME = "negamax-alpha-beta"
     }
     override val name = NAME
 
-    private val initDepth = searchDepth
+    init {
+        require(temperature >= 0.0 && temperature.isFinite()) {
+            "temperature must be finite and non-negative"
+        }
+    }
+
+    private val rng = Random(randomSeed)
     private var nodesSearched = 0
 
     override fun selectMove(board: BoardState, gameStatus: GameStatus): BoardState {
-        nodesSearched = 0 // reset
-        val (bestMove, bestMoveScore) = getBestMove(board, gameStatus)
+        nodesSearched = 0
+
+        val (bestMove, _) = if (temperature == 0.0) {
+            getBestMove(board, gameStatus)
+        } else {
+            chooseRootMoveWithTemperature(board, gameStatus)
+        }
 
         if (bestMove == -1) {
             throw InvalidGameStatusException(board, gameStatus)
         }
 
-        // debug log
-        val color = if (gameStatus.blackToMove()) "Black" else "White"
-        //println("Moving piece: $color,  Best Move: $bestMove, Score: $bestMoveScore")
-        //println("Nodes searched: $nodesSearched")
-
         return updateBoardState(board, gameStatus.blackToMove(), bestMove)
+    }
+
+    /**
+     * Scores every root move with a full alpha-beta window, then samples one with
+     * softmax. Deeper search nodes remain deterministic.
+     *
+     * Root scores are standardized within the current position before applying
+     * temperature. This makes temperature dimensionless, so multiplying or
+     * shifting an evaluator's scores does not change the move probabilities.
+     */
+    private fun chooseRootMoveWithTemperature(
+        board: BoardState,
+        gameStatus: GameStatus,
+    ): Pair<Int, Double> {
+        if (searchDepth == 0 || board.remainingMoves == 0) {
+            return -1 to Double.NEGATIVE_INFINITY
+        }
+
+        val blackToMove = gameStatus.blackToMove()
+        val nextStatus = if (blackToMove) WHITE_TO_MOVE else BLACK_TO_MOVE
+        val moveScores = getNextPossibleMoves(board, blackToMove)
+            .sortedByDescending(this::moveSorter)
+            .map { move ->
+                val updatedBoardState = updateBoardState(board, blackToMove, move)
+                val (_, opponentScore) = getBestMove(
+                    board = updatedBoardState,
+                    gameStatus = nextStatus,
+                    alpha = Double.NEGATIVE_INFINITY,
+                    beta = Double.POSITIVE_INFINITY,
+                    depth = searchDepth - 1,
+                )
+                move to -opponentScore
+            }
+
+        if (moveScores.isEmpty()) {
+            return -1 to Double.NEGATIVE_INFINITY
+        }
+        if (moveScores.size == 1) {
+            return moveScores.single()
+        }
+
+        require(moveScores.all { (_, score) -> score.isFinite() }) {
+            "board evaluator must return finite scores when temperature is enabled"
+        }
+
+        val scores = moveScores.map { it.second }
+
+        // Scaling first avoids overflow while calculating variance for evaluators
+        // whose scores have a large (but still finite) magnitude.
+        val largestMagnitude = scores.maxOf(::abs)
+        val scaledScores = if (largestMagnitude == 0.0) {
+            scores
+        } else {
+            scores.map { it / largestMagnitude }
+        }
+        val mean = scaledScores.average()
+        val standardDeviation = sqrt(
+            scaledScores.sumOf { score ->
+                val deviation = score - mean
+                deviation * deviation
+            } / scaledScores.size
+        )
+
+        val logits = if (standardDeviation == 0.0) {
+            List(moveScores.size) { 0.0 }
+        } else {
+            val denominator = standardDeviation * temperature
+            if (denominator == 0.0) {
+                // A positive temperature can still underflow to zero. At that
+                // point its intended behavior is indistinguishable from T = 0.
+                val bestScore = scaledScores.max()
+                scaledScores.map { if (it == bestScore) 0.0 else Double.NEGATIVE_INFINITY }
+            } else {
+                val bestScore = scaledScores.max()
+                scaledScores.map { (it - bestScore) / denominator }
+            }
+        }
+
+        // Subtracting the largest logit above keeps every exponential in [0, 1],
+        // which makes the softmax numerically stable even for small temperatures.
+        val weights = logits.map(::exp)
+        val sample = rng.nextDouble() * weights.sum()
+        var cumulativeWeight = 0.0
+        for (index in moveScores.indices) {
+            cumulativeWeight += weights[index]
+            if (sample < cumulativeWeight) {
+                return moveScores[index]
+            }
+        }
+
+        // Protect against the final cumulative sum rounding down by a few ulps.
+        return moveScores.last()
     }
 
     /**
@@ -54,7 +161,7 @@ class NegamaxWithAlphaBetaSearch(searchDepth: Int, private val boardEvaluator: B
         gameStatus: GameStatus,
         alpha: Double = Double.NEGATIVE_INFINITY,
         beta: Double = Double.POSITIVE_INFINITY,
-        depth: Int = initDepth,
+        depth: Int = searchDepth,
     ): Pair<Int, Double> {
         nodesSearched++
         val blackToMove = gameStatus.blackToMove()

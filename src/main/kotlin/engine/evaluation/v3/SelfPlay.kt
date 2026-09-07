@@ -39,15 +39,16 @@ fun generateSelfPlayData(numGames: Int, weightsFilePath: String, outDir: String)
 
         val randomSeed = 91234567L + it * 987654327L
 
-        val initialEpsilon = 0.5
-        val floorEpsilon = 0.05
+        val initialEpsilon = 0.75
+        val floorEpsilon = 0.0
         val epsilonDecayFactor = 0.75
+        val negamaxTemperature = 0.7
         val searchDepth = getSearchDepth(it)
 
         // Black
         val player1Engine = Engine(
             DecayingEpsilonGreedyWrapper(
-                internalSelectionAlgorithm = NegamaxWithAlphaBetaSearch(searchDepth = searchDepth, boardEvaluator),
+                internalSelectionAlgorithm = NegamaxWithAlphaBetaSearch(searchDepth = searchDepth, boardEvaluator, negamaxTemperature, randomSeed),
                 initialEpsilon = initialEpsilon,
                 floorEpsilon = floorEpsilon,
                 epsilonDecayFactor = epsilonDecayFactor,
@@ -57,7 +58,7 @@ fun generateSelfPlayData(numGames: Int, weightsFilePath: String, outDir: String)
         // White
         val player2Engine = Engine(
             DecayingEpsilonGreedyWrapper(
-                internalSelectionAlgorithm = NegamaxWithAlphaBetaSearch(searchDepth = searchDepth, boardEvaluator),
+                internalSelectionAlgorithm = NegamaxWithAlphaBetaSearch(searchDepth = searchDepth, boardEvaluator, negamaxTemperature, randomSeed + 1),
                 initialEpsilon = initialEpsilon,
                 floorEpsilon = floorEpsilon,
                 epsilonDecayFactor = epsilonDecayFactor,

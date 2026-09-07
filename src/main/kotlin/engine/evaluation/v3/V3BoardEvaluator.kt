@@ -22,7 +22,7 @@ class V3BoardEvaluator(weightsFilePath: String): BoardEvaluator {
 
     override fun evaluateBoard(board: BoardState, gameIsOver: Boolean?): Double {
         // Can override the end proximity calc if the caller knows the game is over due to no legal moves
-        val gameIsOver = gameIsOver ?: (board.endProximity() == 1.0)
+        val gameIsOver = gameIsOver ?: (board.remainingMoves == 0)
 
         return if (gameIsOver) {
             terminalBoardScore(board)
