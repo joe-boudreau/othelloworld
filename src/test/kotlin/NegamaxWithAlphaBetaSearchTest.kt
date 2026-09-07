@@ -32,26 +32,28 @@ class NegamaxWithAlphaBetaSearchTest {
 
     @Test
     fun `zero temperature does not sample an inferior move from a fail-soft tie`() {
-        val board = BoardState(
-            whitePositions = 134217728L,
-            blackPositions = 17695533694976L,
-        )
+        val board = failSoftTieBoard()
         val search = NegamaxWithAlphaBetaSearch(
             searchDepth = 4,
-            boardEvaluator = object : BoardEvaluator {
-                override fun evaluateBoard(board: BoardState, gameIsOver: Boolean?): Double =
-                    (board.blackPieceCount - board.whitePieceCount).toDouble()
-            },
+            boardEvaluator = pieceDifferenceEvaluator,
             temperature = 0.0,
             randomSeed = 0L,
         )
 
-        val bestBoards = setOf(
-            updateBoardState(board, blackToMove = false, move = 29),
-            updateBoardState(board, blackToMove = false, move = 45),
+        assertTrue(search.selectMove(board, WHITE_TO_MOVE) in bestBoards(board))
+    }
+
+    @Test
+    fun `positive temperature softmax uses exact root scores`() {
+        val board = failSoftTieBoard()
+        val search = NegamaxWithAlphaBetaSearch(
+            searchDepth = 4,
+            boardEvaluator = pieceDifferenceEvaluator,
+            temperature = 0.001,
+            randomSeed = 0L,
         )
 
-        assertTrue(search.selectMove(board, WHITE_TO_MOVE) in bestBoards)
+        assertTrue(search.selectMove(board, WHITE_TO_MOVE) in bestBoards(board))
     }
 
     @Test
@@ -124,5 +126,20 @@ class NegamaxWithAlphaBetaSearchTest {
     private fun evaluator(scores: Map<BoardState, Double>) = object : BoardEvaluator {
         override fun evaluateBoard(board: BoardState, gameIsOver: Boolean?): Double =
             scores.getValue(board)
+    }
+
+    private fun failSoftTieBoard() = BoardState(
+        whitePositions = 134217728L,
+        blackPositions = 17695533694976L,
+    )
+
+    private fun bestBoards(board: BoardState) = setOf(
+        updateBoardState(board, blackToMove = false, move = 29),
+        updateBoardState(board, blackToMove = false, move = 45),
+    )
+
+    private val pieceDifferenceEvaluator = object : BoardEvaluator {
+        override fun evaluateBoard(board: BoardState, gameIsOver: Boolean?): Double =
+            (board.blackPieceCount - board.whitePieceCount).toDouble()
     }
 }
