@@ -59,7 +59,7 @@ fun main(args: Array<String>) {
     repeat(numGames) {
         val p1IsBlack = it % 2 == 0
 
-        println("\nGame $it - Player 1: ${if (p1IsBlack) "Black" else "White"}, Player 2: ${if (!p1IsBlack) "Black" else "White"}")
+        //println("\nGame $it - Player 1: ${if (p1IsBlack) "Black" else "White"}, Player 2: ${if (!p1IsBlack) "Black" else "White"}")
 
         val randomSeed = 987654321 + it * 12345678L
 
@@ -110,14 +110,14 @@ fun main(args: Array<String>) {
             val pieceRatioPercent = (if (p1IsBlack) blackPieceRatio else whitePieceRatio) * 100
             sumP1PieceRatioPercentForWins += pieceRatioPercent
             sumP1TotalMovesForWins += numberOfMoves
-            println("Player 1 wins. Piece ratio: $pieceRatioPercent%, Total moves: $numberOfMoves")
+            //println("Player 1 wins. Piece ratio: $pieceRatioPercent%, Total moves: $numberOfMoves")
         }
         else {
             p2Wins++
             val pieceRatioPercent = (if (p1IsBlack) whitePieceRatio else blackPieceRatio) * 100
             sumP2PieceRatioPercentForWins += pieceRatioPercent
             sumP2TotalMovesForWins += numberOfMoves
-            println("Player 2 wins. Piece ratio: $pieceRatioPercent%, Total moves: $numberOfMoves")
+            //println("Player 2 wins. Piece ratio: $pieceRatioPercent%, Total moves: $numberOfMoves")
         }
     }
 

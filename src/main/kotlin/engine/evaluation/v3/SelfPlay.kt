@@ -84,7 +84,7 @@ private fun playSelfPlayGame(
     val floorEpsilon = 0.0
     val epsilonDecayFactor = 0.75
     val negamaxTemperature = 0.7
-    val searchDepth = 8
+    val searchDepth = 7
 
     val blackEngine = Engine(
         DecayingEpsilonGreedyWrapper(
