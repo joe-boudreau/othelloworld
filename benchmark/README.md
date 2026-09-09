@@ -1,8 +1,13 @@
 # Fixed benchmark positions
 
-`positions-v1.csv` is the fixed set of 1,000 positions used to compare Othello
-engines. `positions-v1-audit.csv` contains the same positions with their stage,
-strength category, and frozen-reference score.
+`seed-positions.csv` is the fixed set of 1,000 positions used to compare Othello
+engines. Each row contains its board, game status, stage, strength category, and
+frozen-reference score. `SeedPositionsRepository` owns this CSV schema and
+provides its Kotlin reader and writer.
+
+```kotlin
+val seedPositions = SeedPositionsRepository().read()
+```
 
 The set contains 600 approximately even positions and 100 positions in each of
 the black, white, strong-black, and strong-white categories. It is split across
@@ -24,10 +29,10 @@ Regenerate and validate the files from the repository root with:
 ./gradlew generateBenchmarkPositions test
 ```
 
-The expected SHA-256 for `positions-v1.csv` is:
+The expected SHA-256 for `seed-positions.csv` is:
 
 ```text
-453061cec749c36f5422566f5b7ac5236a50ba931b504298c17d36116d640b55
+42d3b7bfe1132c7baacc02ef4665339beeab91bb395268255ecf7e44890a7cf5
 ```
 
 Changing the positions, reference weights, or generation recipe should create

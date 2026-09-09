@@ -5,7 +5,6 @@ import com.othelloworld.engine.evaluation.v2.V2BoardEvaluator
 import com.othelloworld.engine.Engine
 import com.othelloworld.engine.GameStatus
 import com.othelloworld.engine.GameStatus.*
-import com.othelloworld.engine.STARTING_STATE
 import com.othelloworld.engine.algorithms.DecayingEpsilonGreedyWrapper
 import com.othelloworld.engine.algorithms.NegamaxWithAlphaBetaSearch
 import com.othelloworld.engine.evaluation.blackPieceRatio
@@ -15,24 +14,32 @@ import com.othelloworld.engine.evaluation.v3.V3BoardEvaluator
 import com.othelloworld.engine.evaluation.whitePieceRatio
 
 fun main(args: Array<String>) {
-    require(args.size == 7) {
-        "Expected: <player 1 weights path> <player 2 weights path> <p1 search depth> <p2 search depth> <p1 evaluator version> <p2 evaluator version> <num games>"
+    require(args.size in 4..6) {
+        "Expected: " +
+            "<p1 evaluator version> " +
+            "<p2 evaluator version> " +
+            "<player 1 weights path> " +
+            "<player 2 weights path> " +
+            "[optional] <p1 search depth> default: 7" +
+            "[optional] <p2 search depth> default: 7"
     }
 
-    val p1WeightsPath = args[0]
-    val p2WeightsPath = args[1]
-    val p1SearchDepth = args[2].toInt()
-    val p2SearchDepth = args[3].toInt()
-    val p1EvaluatorVersion = args[4]
-    val p2EvaluatorVersion = args[5]
-    val numGames = args[6].toInt()
+    val p1EvaluatorVersion = args[0]
+    val p2EvaluatorVersion = args[1]
+    val p1WeightsPath = args[2]
+    val p2WeightsPath = args[3]
+    val p1SearchDepth = args.getOrNull(4)?.toInt() ?: 7
+    val p2SearchDepth = args.getOrNull(5)?.toInt() ?: 7
+    val seedPositions = SeedPositionsRepository().read()
 
     println("Benchmark configuration:")
+    println("  player 1 evaluator version: $p1EvaluatorVersion")
+    println("  player 2 evaluator version: $p2EvaluatorVersion")
     println("  player 1 weights: $p1WeightsPath")
     println("  player 2 weights: $p2WeightsPath")
     println("  player 1 search depth: $p1SearchDepth")
     println("  player 2 search depth: $p2SearchDepth")
-    println("  num games: $numGames")
+    println("  seed positions: ${seedPositions.size}")
 
     var draws = 0
     var p1Wins = 0
@@ -56,39 +63,19 @@ fun main(args: Array<String>) {
         else -> throw IllegalArgumentException("Unknown evaluator version: $p2EvaluatorVersion")
     }
 
-    repeat(numGames) {
-        val p1IsBlack = it % 2 == 0
+    seedPositions.forEachIndexed { gameNumber, seedPosition ->
+        val p1IsBlack = gameNumber % 2 == 0
 
-        //println("\nGame $it - Player 1: ${if (p1IsBlack) "Black" else "White"}, Player 2: ${if (!p1IsBlack) "Black" else "White"}")
+        //val randomSeed = 987654321 + gameNumber * 12345678L
 
-        val randomSeed = 987654321 + it * 12345678L
+        val player1Engine = Engine(NegamaxWithAlphaBetaSearch(p1SearchDepth,p1Evaluator))
 
-        val initialEpsilon = 0.5
-        val floorEpsilon = 0.0
-        val epsilonDecayFactor = 0.5
-
-        val player1Engine = Engine(
-            DecayingEpsilonGreedyWrapper(
-                internalSelectionAlgorithm = NegamaxWithAlphaBetaSearch(p1SearchDepth,p1Evaluator),
-                initialEpsilon = initialEpsilon,
-                floorEpsilon = floorEpsilon,
-                epsilonDecayFactor = epsilonDecayFactor,
-                randomSeed = randomSeed
-        ))
-
-        val player2Engine = Engine(
-            DecayingEpsilonGreedyWrapper(
-                internalSelectionAlgorithm = NegamaxWithAlphaBetaSearch(p2SearchDepth,p2Evaluator),
-                initialEpsilon = initialEpsilon,
-                floorEpsilon = floorEpsilon,
-                epsilonDecayFactor = epsilonDecayFactor,
-                randomSeed = randomSeed + 1
-            ))
+        val player2Engine = Engine(NegamaxWithAlphaBetaSearch(p2SearchDepth,p2Evaluator))
 
         fun getMovingEngine(gameStatus : GameStatus) = if (gameStatus.blackToMove() && p1IsBlack || gameStatus.whiteToMove() && !p1IsBlack) player1Engine else player2Engine
 
-        var boardState = STARTING_STATE
-        var gameStatus = BLACK_TO_MOVE
+        var boardState = seedPosition.board
+        var gameStatus = seedPosition.gameStatus
 
         while (!gameStatus.isTerminal()) {
             val result = getMovingEngine(gameStatus).makeEngineMove(boardState, gameStatus)
@@ -110,14 +97,12 @@ fun main(args: Array<String>) {
             val pieceRatioPercent = (if (p1IsBlack) blackPieceRatio else whitePieceRatio) * 100
             sumP1PieceRatioPercentForWins += pieceRatioPercent
             sumP1TotalMovesForWins += numberOfMoves
-            //println("Player 1 wins. Piece ratio: $pieceRatioPercent%, Total moves: $numberOfMoves")
         }
         else {
             p2Wins++
             val pieceRatioPercent = (if (p1IsBlack) whitePieceRatio else blackPieceRatio) * 100
             sumP2PieceRatioPercentForWins += pieceRatioPercent
             sumP2TotalMovesForWins += numberOfMoves
-            //println("Player 2 wins. Piece ratio: $pieceRatioPercent%, Total moves: $numberOfMoves")
         }
     }
 

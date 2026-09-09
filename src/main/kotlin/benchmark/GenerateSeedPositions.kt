@@ -28,18 +28,15 @@ private const val EARLY_CANDIDATES_PER_LARGE_DEPTH = 400
 private const val SCORE_WORKER_COUNT = 8
 private const val RANDOM_SEED = 20_260_908L
 private const val REFERENCE_WEIGHTS_PATH = "benchmark/reference/v1/weights.json"
-private const val DEFAULT_OUTPUT_PATH = "benchmark/positions-v1.csv"
-private const val DEFAULT_AUDIT_OUTPUT_PATH = "benchmark/positions-v1-audit.csv"
 
 private const val SELF_PLAY_INITIAL_EPSILON = 0.75
 private const val SELF_PLAY_FLOOR_EPSILON = 0.05
 private const val SELF_PLAY_EPSILON_DECAY_FACTOR = 0.90
 
 fun main(args: Array<String>) = runBlocking {
-    require(args.size <= 2) { "Expected: [benchmark CSV path] [audit CSV path]" }
+    require(args.size <= 1) { "Expected: [seed positions CSV path]" }
 
-    val outputFile = File(args.getOrNull(0) ?: DEFAULT_OUTPUT_PATH)
-    val auditOutputFile = File(args.getOrNull(1) ?: DEFAULT_AUDIT_OUTPUT_PATH)
+    val outputFile = File(args.getOrNull(0) ?: DEFAULT_SEED_POSITIONS_PATH)
     val evaluator = V3BoardEvaluator(REFERENCE_WEIGHTS_PATH)
 
     println("Generating deterministic benchmark candidates")
@@ -67,36 +64,11 @@ fun main(args: Array<String>) = runBlocking {
     val selectedPositions = selectBenchmarkPositions(scoredPositions)
     validateBenchmarkPositions(selectedPositions)
 
-    writePositionsCsv(selectedPositions, outputFile)
-    writeAuditCsv(selectedPositions, auditOutputFile)
+    SeedPositionsRepository(outputFile).write(selectedPositions)
     printSelectionReport(selectedPositions)
 
     println("Wrote ${selectedPositions.size} positions to ${outputFile.absolutePath}")
-    println("Wrote selection metadata to ${auditOutputFile.absolutePath}")
-    println("Benchmark CSV SHA-256: ${sha256(outputFile)}")
-}
-
-internal enum class BenchmarkStage(
-    val csvValue: String,
-    val pieceCounts: IntRange,
-) {
-    EARLY("early", 4..12),
-    MID("mid", 24..32),
-    LATE("late", 44..52),
-    ;
-
-    companion object {
-        fun fromPieceCount(pieceCount: Int): BenchmarkStage? =
-            entries.firstOrNull { pieceCount in it.pieceCounts }
-    }
-}
-
-internal enum class StrengthCategory(val csvValue: String) {
-    EVEN("even"),
-    BLACK("black"),
-    WHITE("white"),
-    STRONG_BLACK("strong-black"),
-    STRONG_WHITE("strong-white"),
+    println("Seed positions CSV SHA-256: ${sha256(outputFile)}")
 }
 
 internal data class SearchPosition(
@@ -112,13 +84,6 @@ internal data class CandidatePosition(
 internal data class ScoredPosition(
     val position: SearchPosition,
     val stage: BenchmarkStage,
-    val referenceScore: Double,
-)
-
-internal data class BenchmarkPosition(
-    val position: SearchPosition,
-    val stage: BenchmarkStage,
-    val strength: StrengthCategory,
     val referenceScore: Double,
 )
 
@@ -326,7 +291,7 @@ private suspend fun scoreCandidates(
 
 internal fun selectBenchmarkPositions(
     scoredPositions: List<ScoredPosition>,
-): List<BenchmarkPosition> = BenchmarkStage.entries.flatMap { stage ->
+): List<SeedPosition> = BenchmarkStage.entries.flatMap { stage ->
     val stagePositions = scoredPositions.filter { it.stage == stage }
     val quota = stageQuotas.getValue(stage)
     require(stagePositions.size >= quota.total) {
@@ -350,11 +315,11 @@ internal fun selectBenchmarkPositions(
         positions: List<ScoredPosition>,
         count: Int,
         strength: StrengthCategory,
-    ): List<BenchmarkPosition> = positions.asSequence()
+    ): List<SeedPosition> = positions.asSequence()
         .filter { it !in selected }
         .take(count)
         .onEach { selected.add(it) }
-        .map { it.toBenchmarkPosition(strength) }
+        .map { it.toSeedPosition(strength) }
         .toList()
 
     val strongBlack = take(positive, quota.strongBlack, StrengthCategory.STRONG_BLACK)
@@ -374,8 +339,9 @@ internal fun selectBenchmarkPositions(
     even + black + white + strongBlack + strongWhite
 }
 
-private fun ScoredPosition.toBenchmarkPosition(strength: StrengthCategory) = BenchmarkPosition(
-    position = position,
+private fun ScoredPosition.toSeedPosition(strength: StrengthCategory) = SeedPosition(
+    board = position.board,
+    gameStatus = position.gameStatus,
     stage = stage,
     strength = strength,
     referenceScore = referenceScore,
@@ -449,23 +415,27 @@ private fun transformBitboard(bitboard: Long, transform: SquareTransform): Long 
     return transformed
 }
 
-internal fun validateBenchmarkPositions(positions: List<BenchmarkPosition>) {
+internal fun validateBenchmarkPositions(positions: List<SeedPosition>) {
     require(positions.size == TARGET_POSITION_COUNT) {
         "Expected $TARGET_POSITION_COUNT positions, got ${positions.size}"
     }
-    require(positions.map { canonicalize(it.position) }.distinct().size == positions.size) {
+    require(
+        positions.map { canonicalize(SearchPosition(it.board, it.gameStatus)) }
+            .distinct()
+            .size == positions.size
+    ) {
         "Benchmark contains exact or symmetry-equivalent duplicate positions"
     }
-    require(positions.none { it.position.gameStatus.isTerminal() }) {
+    require(positions.none { it.gameStatus.isTerminal() }) {
         "Benchmark contains terminal positions"
     }
     val engine = Engine(RandomSelection(Random(RANDOM_SEED)))
     require(positions.all {
-        engine.getValidMoves(it.position.board, it.position.gameStatus).isNotEmpty()
+        engine.getValidMoves(it.board, it.gameStatus).isNotEmpty()
     }) {
         "Benchmark contains a non-terminal position without a legal move"
     }
-    require(positions.all { it.position.board.pieceCount() in it.stage.pieceCounts }) {
+    require(positions.all { it.board.pieceCount() in it.stage.pieceCounts }) {
         "Benchmark contains a position outside its stage's piece range"
     }
 
@@ -480,36 +450,7 @@ internal fun validateBenchmarkPositions(positions: List<BenchmarkPosition>) {
     }
 }
 
-internal fun writePositionsCsv(positions: List<BenchmarkPosition>, outputFile: File) {
-    outputFile.parentFile?.mkdirs()
-    outputFile.bufferedWriter().use { writer ->
-        writer.write("Black positions, White positions, game status\n")
-        positions.forEach { position ->
-            writer.write(position.position.toCsvPrefix() + "\n")
-        }
-    }
-}
-
-private fun writeAuditCsv(positions: List<BenchmarkPosition>, outputFile: File) {
-    outputFile.parentFile?.mkdirs()
-    outputFile.bufferedWriter().use { writer ->
-        writer.write(
-            "Black positions, White positions, game status, stage, " +
-                "strength, reference score\n"
-        )
-        positions.forEach { position ->
-            writer.write(
-                "${position.position.toCsvPrefix()}, ${position.stage.csvValue}, " +
-                    "${position.strength.csvValue}, ${position.referenceScore}\n"
-            )
-        }
-    }
-}
-
-private fun SearchPosition.toCsvPrefix(): String =
-    "${board.blackPositions}L, ${board.whitePositions}L, $gameStatus"
-
-private fun printSelectionReport(positions: List<BenchmarkPosition>) {
+private fun printSelectionReport(positions: List<SeedPosition>) {
     println("Final benchmark selection:")
     BenchmarkStage.entries.forEach { stage ->
         StrengthCategory.entries.forEach { strength ->

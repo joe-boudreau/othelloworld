@@ -47,58 +47,38 @@ class GenerateSeedPositionsTest {
     }
 
     @Test
-    fun `writes the requested CSV format`() {
+    fun `repository round trips the complete CSV schema`() {
         val outputFile = File(createTempDirectory().toFile(), "positions.csv")
-        val position = BenchmarkPosition(
-            position = SearchPosition(
-                board = BoardState(WHITE_STARTING_POSITION, BLACK_STARTING_POSITION),
-                gameStatus = BLACK_TO_MOVE,
-            ),
+        val position = SeedPosition(
+            board = BoardState(WHITE_STARTING_POSITION, BLACK_STARTING_POSITION),
+            gameStatus = BLACK_TO_MOVE,
             stage = BenchmarkStage.EARLY,
             strength = StrengthCategory.EVEN,
-            referenceScore = 0.0,
+            referenceScore = -0.125,
         )
+        val repository = SeedPositionsRepository(outputFile)
 
-        writePositionsCsv(listOf(position), outputFile)
+        repository.write(listOf(position))
 
         assertEquals(
             listOf(
-                "Black positions, White positions, game status",
-                "${BLACK_STARTING_POSITION}L, ${WHITE_STARTING_POSITION}L, BLACK_TO_MOVE",
+                "Black positions, White positions, game status, stage, strength, reference score",
+                "${BLACK_STARTING_POSITION}L, ${WHITE_STARTING_POSITION}L, " +
+                    "BLACK_TO_MOVE, early, even, -0.125",
             ),
             outputFile.readLines(),
         )
+        assertEquals(listOf(position), repository.read())
     }
 
     @Test
-    fun `committed benchmark is valid and matches its audit file`() {
-        val benchmarkFile = File("benchmark/positions-v1.csv")
-        val auditFile = File("benchmark/positions-v1-audit.csv")
-        val benchmarkLines = benchmarkFile.readLines()
-        val auditLines = auditFile.readLines()
-        val positions = auditLines.drop(1).map { line ->
-            val columns = line.split(", ")
-            BenchmarkPosition(
-                position = SearchPosition(
-                    board = BoardState(
-                        blackPositions = columns[0].removeSuffix("L").toLong(),
-                        whitePositions = columns[1].removeSuffix("L").toLong(),
-                    ),
-                    gameStatus = com.othelloworld.engine.GameStatus.valueOf(columns[2]),
-                ),
-                stage = BenchmarkStage.entries.single { it.csvValue == columns[3] },
-                strength = StrengthCategory.entries.single { it.csvValue == columns[4] },
-                referenceScore = columns[5].toDouble(),
-            )
-        }
+    fun `committed seed positions benchmark is readable and valid`() {
+        val benchmarkFile = File("benchmark/seed-positions.csv")
+        val positions = SeedPositionsRepository(benchmarkFile).read()
 
         validateBenchmarkPositions(positions)
         assertEquals(
-            benchmarkLines.drop(1),
-            auditLines.drop(1).map { it.split(", ").take(3).joinToString(", ") },
-        )
-        assertEquals(
-            "453061cec749c36f5422566f5b7ac5236a50ba931b504298c17d36116d640b55",
+            "42d3b7bfe1132c7baacc02ef4665339beeab91bb395268255ecf7e44890a7cf5",
             sha256(benchmarkFile),
         )
     }

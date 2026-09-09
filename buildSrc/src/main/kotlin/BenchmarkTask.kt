@@ -10,11 +10,10 @@ import javax.inject.Inject
 abstract class BenchmarkTask : DefaultTask() {
     private var p1WeightsValue = ""
     private var p2WeightsValue = ""
-    private var p1SearchDepthValue = 4
-    private var p2SearchDepthValue = 4
-    private var p1EvaluatorVersionValue = "v2"
-    private var p2EvaluatorVersionValue = "v2"
-    private var numGamesValue = 10
+    private var p1SearchDepthValue = 7
+    private var p2SearchDepthValue = 7
+    private var p1EvaluatorVersionValue = "v3"
+    private var p2EvaluatorVersionValue = "v3"
 
 
     @get:Inject
@@ -46,10 +45,6 @@ abstract class BenchmarkTask : DefaultTask() {
     @get:Input
     val p2EvaluatorVersion: String
         get() = p2EvaluatorVersionValue
-
-    @get:Input
-    val numGames: Int
-        get() = numGamesValue
 
     @Option(option = "p1-weights", description = "Path to player 1 weights file")
     fun setP1Weights(value: String) {
@@ -83,14 +78,11 @@ abstract class BenchmarkTask : DefaultTask() {
         p2EvaluatorVersionValue = value
     }
 
-    @Option(option = "num-games", description = "Number of games to run")
-    fun setNumGames(value: String) {
-        numGamesValue = value.toIntOrNull()
-            ?: throw IllegalArgumentException("--num-games must be an integer")
-    }
-
     @TaskAction
     fun runBenchmark() {
+
+        require(p1EvaluatorVersion.isNotBlank()) { "Provide --p1-evaluator-version=<version>" }
+        require(p2EvaluatorVersion.isNotBlank()) { "Provide --p2-evaluator-version=<version>" }
         require(p1Weights.isNotBlank()) { "Provide --p1-weights=<path>" }
         require(p2Weights.isNotBlank()) { "Provide --p2-weights=<path>" }
 
@@ -98,13 +90,12 @@ abstract class BenchmarkTask : DefaultTask() {
             classpath = runtimeClasspath
             mainClass.set("com.othelloworld.benchmark.BenchmarkMainKt")
             args(
+                p1EvaluatorVersion,
+                p2EvaluatorVersion,
                 p1Weights,
                 p2Weights,
                 p1SearchDepthValue.toString(),
                 p2SearchDepthValue.toString(),
-                p1EvaluatorVersion,
-                p2EvaluatorVersion,
-                numGamesValue.toString()
             )
         }
     }
