@@ -116,6 +116,27 @@ class NegamaxWithAlphaBetaSearchTest {
         }
     }
 
+    @Test
+    fun `position evaluation always returns the score from Blacks perspective`() {
+        val blackSearch = NegamaxWithAlphaBetaSearch(
+            searchDepth = 0,
+            boardEvaluator = pieceDifferenceEvaluator,
+        )
+        val whiteSearch = NegamaxWithAlphaBetaSearch(
+            searchDepth = 0,
+            boardEvaluator = pieceDifferenceEvaluator,
+        )
+        val board = BoardState(
+            whitePositions = 134217728L,
+            blackPositions = 17695533694976L,
+        )
+
+        assertEquals(
+            blackSearch.evaluatePosition(board, BLACK_TO_MOVE),
+            whiteSearch.evaluatePosition(board, WHITE_TO_MOVE),
+        )
+    }
+
     private fun scoredStartingMoves(): Map<BoardState, Double> =
         getNextPossibleMoves(STARTING_STATE, blackToMove = true)
             .mapIndexed { index, move ->

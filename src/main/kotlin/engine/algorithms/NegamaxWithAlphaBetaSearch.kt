@@ -33,6 +33,25 @@ class NegamaxWithAlphaBetaSearch(
     private val rng = Random(randomSeed)
     private var nodesSearched = 0
 
+    /**
+     * Returns a deterministic score for this position from Black's perspective.
+     * Positive values favour Black and negative values favour White.
+     */
+    fun evaluatePosition(board: BoardState, gameStatus: GameStatus): Double {
+        nodesSearched = 0
+
+        if (gameStatus.isTerminal()) {
+            return boardEvaluator.evaluateBoard(board, gameIsOver = true)
+        }
+
+        val currentPlayerScore = negamaxScore(
+            board = board,
+            gameStatus = gameStatus,
+            depth = searchDepth,
+        )
+        return if (gameStatus.blackToMove()) currentPlayerScore else -currentPlayerScore
+    }
+
     override fun selectMove(board: BoardState, gameStatus: GameStatus): BoardState {
         nodesSearched = 0
 

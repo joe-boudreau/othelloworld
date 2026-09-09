@@ -36,3 +36,10 @@ tasks.register<BenchmarkTask>("benchmark") {
     description = "Runs an Othello benchmark."
     runtimeClasspath.from(sourceSets["main"].runtimeClasspath)
 }
+
+tasks.register<JavaExec>("generateBenchmarkPositions") {
+    group = "application"
+    description = "Generates the fixed, curated Othello benchmark position set."
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("com.othelloworld.benchmark.GenerateSeedPositionsKt")
+}

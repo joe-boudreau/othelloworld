@@ -1,0 +1,23 @@
+{
+  "evaluator": "v3",
+  "referenceSearchDepth": 7,
+  "candidateSelfPlaySearchDepth": 3,
+  "candidateSelfPlayTemperature": 0.7,
+  "candidateSelfPlayInitialEpsilon": 0.75,
+  "candidateSelfPlayFloorEpsilon": 0.05,
+  "candidateSelfPlayEpsilonDecayFactor": 0.90,
+  "randomSeed": 20260908,
+  "targetPositions": 1000,
+  "stages": {
+    "early": "4-12 pieces",
+    "mid": "24-32 pieces",
+    "late": "44-52 pieces"
+  },
+  "categoryTotals": {
+    "even": 600,
+    "black": 100,
+    "white": 100,
+    "strong-black": 100,
+    "strong-white": 100
+  }
+}
